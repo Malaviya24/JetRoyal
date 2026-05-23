@@ -311,6 +311,7 @@ const Bet = ({ index, add, setAdd }: BetProps) => {
 									update({ ...state, [`${index}autoCound`]: 0, userInfo: { ...state.userInfo, [index]: { ...state.userInfo[index], auto: false } } })
 								}}><label>CANCEL</label></button>
 							</> :
+							localStorage.getItem("token") ? (
 							<button onClick={() => onBetClick(true)} className="btn-success">
 								<span>
 									<label>BET</label>
@@ -320,6 +321,15 @@ const Bet = ({ index, add, setAdd }: BetProps) => {
 									</label>
 								</span>
 							</button>
+							) : (
+							<div className="login-prompt">
+								<p className="login-prompt-text">Login to place bets</p>
+								<div className="login-prompt-btns">
+									<button className="btn-login-prompt" onClick={() => window.location.href = "/login"}>Login</button>
+									<button className="btn-register-prompt" onClick={() => window.location.href = "/register"}>Register</button>
+								</div>
+							</div>
+							)
 						}
 					</div>
 				</div>

@@ -12,17 +12,21 @@ export default function Header() {
   const [howto, setHowto] = React.useState<'howto' | 'short' | 'more' | ''>("howto");
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
+  const isLoggedIn = !!localStorage.getItem("token");
+
   return (
     <div className="header flex-none items-center">
       <div className="header-container">
         <div className="header-left">
-          <button className="hamburger-btn" onClick={() => setSidebarOpen(true)}>
-            <svg width="20" height="16" viewBox="0 0 20 16" fill="none">
-              <rect y="0" width="20" height="2.5" rx="1.25" fill="#fff"/>
-              <rect y="6.75" width="20" height="2.5" rx="1.25" fill="#fff"/>
-              <rect y="13.5" width="20" height="2.5" rx="1.25" fill="#fff"/>
-            </svg>
-          </button>
+          {isLoggedIn && (
+            <button className="hamburger-btn" onClick={() => setSidebarOpen(true)}>
+              <svg width="20" height="16" viewBox="0 0 20 16" fill="none">
+                <rect y="0" width="20" height="2.5" rx="1.25" fill="#fff"/>
+                <rect y="6.75" width="20" height="2.5" rx="1.25" fill="#fff"/>
+                <rect y="13.5" width="20" height="2.5" rx="1.25" fill="#fff"/>
+              </svg>
+            </button>
+          )}
           <div className="logo-container">
             <img src={logo} alt="logo" className="logo"></img>
           </div>
@@ -32,12 +36,19 @@ export default function Header() {
             <div className="help-logo"></div>
             <div className="help-msg">How to play ?</div>
           </button>
-          <div className="d-flex">
-            <div className="balance">
-              <span className="amount">{Number(state.userInfo.balance).toFixed(2)} </span>
-              <span className="currency">&nbsp;INR</span>
+          {isLoggedIn ? (
+            <div className="d-flex">
+              <div className="balance">
+                <span className="amount">{Number(state.userInfo.balance).toFixed(2)} </span>
+                <span className="currency">&nbsp;INR</span>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="d-flex" style={{ gap: '6px' }}>
+              <button className="auth-header-btn login-btn" onClick={() => navigate("/login")}>Login</button>
+              <button className="auth-header-btn register-btn" onClick={() => navigate("/register")}>Register</button>
+            </div>
+          )}
         </div>
       </div>
 

@@ -1154,3 +1154,76 @@ code {
     margin: 8px 16px;
   }
 }
+
+// Header auth buttons (for non-logged-in users)
+.auth-header-btn {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 0.85;
+  }
+}
+
+.login-btn {
+  background: #e69308;
+  color: #fff;
+}
+
+.register-btn {
+  background: #28a909;
+  color: #fff;
+}
+
+// Login prompt in bet area
+.login-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  gap: 8px;
+
+  .login-prompt-text {
+    color: #9ea0a3;
+    font-size: 12px;
+    margin: 0;
+  }
+
+  .login-prompt-btns {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn-login-prompt {
+    padding: 8px 20px;
+    background: #e69308;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover { opacity: 0.85; }
+  }
+
+  .btn-register-prompt {
+    padding: 8px 20px;
+    background: #28a909;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover { opacity: 0.85; }
+  }
+}

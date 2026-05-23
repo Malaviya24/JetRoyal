@@ -24,30 +24,29 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function AuthRedirect({ children }: { children: React.ReactNode }) {
 	const token = localStorage.getItem("token");
-	if (token) return <Navigate to="/game" replace />;
+	if (token) return <Navigate to="/" replace />;
 	return <>{children}</>;
 }
 
-// The game stays mounted always (hidden when on other pages) to prevent Unity crash
 function AppLayout() {
 	const location = useLocation();
-	const token = localStorage.getItem("token");
-	const isGamePage = location.pathname === "/game";
-	const showGame = token && isGamePage;
+	const isHomePage = location.pathname === "/" || location.pathname === "/game";
+	const isAuthPage = location.pathname === "/login" || location.pathname === "/register";
+	const isAdminPage = location.pathname === "/admin";
 
 	return (
 		<>
-			{/* Game is always mounted when logged in, just hidden when not on /game */}
-			{token && (
-				<div style={{ display: isGamePage ? 'block' : 'none', height: '100%' }}>
+			{/* Game is always visible on home page - for everyone */}
+			{isHomePage && (
+				<div style={{ height: '100%' }}>
 					<Provider>
 						<App />
 					</Provider>
 				</div>
 			)}
 
-			{/* Other pages render on top */}
-			{!showGame && (
+			{/* Auth and other pages */}
+			{!isHomePage && (
 				<Routes>
 					<Route path="/login" element={
 						<AuthRedirect><Login /></AuthRedirect>
@@ -71,8 +70,7 @@ function AppLayout() {
 						<ProtectedRoute><BankDetails /></ProtectedRoute>
 					} />
 					<Route path="/admin" element={<Admin />} />
-					<Route path="/" element={<Navigate to="/login" replace />} />
-					<Route path="*" element={<Navigate to="/login" replace />} />
+					<Route path="*" element={<Navigate to="/" replace />} />
 				</Routes>
 			)}
 
