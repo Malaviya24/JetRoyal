@@ -1,0 +1,617 @@
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const cors = require("cors");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const db = require("./db");
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const JWT_SECRET = "aviator_crash_secret_key_2024";
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: "*", methods: ["GET", "POST"] },
+});
+
+// ============ GAME CONFIG ============
+const BET_LIMITS = { max: 10000, min: 1 };
+const BET_PHASE_DURATION = 5000;
+
+const BOT_NAMES = [
+  "Rahul_K", "Priya_M", "Amit_S", "Sneha_R", "Vikram_P",
+  "Anita_D", "Raj_Kumar", "Deepak_V", "Pooja_N", "Suresh_T",
+  "Kavita_G", "Manoj_B", "Ritu_S", "Arun_L", "Neha_J",
+  "Sanjay_W", "Divya_C", "Rohit_A", "Meena_H", "Kiran_F",
+  "Lucky777", "BigBoss99", "CrashPro", "HighRoller", "JetWin",
+  "StarPlayer", "GoldMiner", "RocketBet", "AceHigh", "TopGun",
+  "Arjun_99", "Simran_D", "Mohit_K", "Anjali_P", "Ravi_S",
+  "Nisha_T", "Gaurav_M", "Swati_R", "Vishal_B", "Komal_N",
+  "Harsh_J", "Sakshi_L", "Nikhil_R", "Tanvi_G", "Akash_D",
+  "Megha_S", "Varun_C", "Isha_M", "Kunal_P", "Shreya_B",
+  "Rajesh_V", "Sunita_K", "Manish_T", "Pallavi_A", "Vivek_N",
+  "Geeta_H", "Ashish_F", "Rekha_W", "Pankaj_Y", "Jyoti_Z",
+];
+
+const BOT_AVATARS = [
+  "/avatars/av-3.png", "/avatars/av-4.png", "/avatars/av-5.png",
+  "/avatars/av-12.png", "/avatars/av-13.png", "/avatars/av-14.png",
+  "/avatars/av-15.png", "/avatars/av-39.png", "/avatars/av-45.png",
+];
+
+// ============ GAME STATE ============
+let gameState = "BET";
+let crashPoint = 1;
+let gameStartTime = Date.now();
+let history = [];
+let bettedUsers = [];
+let previousHand = [];
+const players = new Map();
+
+// ============ START SERVER (async for DB init) ============
+async function startServer() {
+  await db.initDB();
+  console.log("[DB] SQLite ready");
+
+// ============ AUTH MIDDLEWARE ============
+function authMiddleware(req, res, next) {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "No token provided" });
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch (e) {
+    return res.status(401).json({ error: "Invalid token" });
+  }
+}
+
+// ============ AUTH ROUTES ============
+app.post("/api/register", (req, res) => {
+  try {
+    const { username, name, phone, password, confirmPassword } = req.body;
+
+    if (!username || !name || !phone || !password || !confirmPassword)
+      return res.status(400).json({ error: "All fields are required" });
+    if (password !== confirmPassword)
+      return res.status(400).json({ error: "Passwords do not match" });
+    if (username.length < 3)
+      return res.status(400).json({ error: "Username must be at least 3 characters" });
+    if (password.length < 6)
+      return res.status(400).json({ error: "Password must be at least 6 characters" });
+    if (phone.length < 10)
+      return res.status(400).json({ error: "Enter a valid phone number" });
+
+    if (db.findUserByUsername(username))
+      return res.status(400).json({ error: "Username already taken" });
+
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    const avatarOptions = ["/avatars/av-3.png", "/avatars/av-4.png", "/avatars/av-5.png", "/avatars/av-12.png", "/avatars/av-13.png", "/avatars/av-14.png", "/avatars/av-15.png", "/avatars/av-39.png", "/avatars/av-45.png"];
+    const img = avatarOptions[Math.floor(Math.random() * avatarOptions.length)];
+    const user = db.createUser({ username, name, phone, password: hashedPassword, img });
+
+    const token = jwt.sign({ id: user.id, username }, JWT_SECRET, { expiresIn: "7d" });
+    res.json({
+      success: true,
+      message: "Registration successful",
+      token,
+      user: { id: user.id, username, name, phone, balance: user.balance, img },
+    });
+  } catch (e) {
+    console.error("Register error:", e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+app.post("/api/login", (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password)
+      return res.status(400).json({ error: "Username and password are required" });
+
+    const user = db.findUserByUsername(username);
+    if (!user || !bcrypt.compareSync(password, user.password))
+      return res.status(400).json({ error: "Invalid username or password" });
+
+    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: "7d" });
+    res.json({
+      success: true,
+      token,
+      user: { id: user.id, username: user.username, name: user.name, phone: user.phone, balance: user.balance, img: user.img },
+    });
+  } catch (e) {
+    console.error("Login error:", e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ============ USER ROUTES ============
+app.get("/api/user/profile", authMiddleware, (req, res) => {
+  const user = db.findUserById(req.user.id);
+  if (!user) return res.status(404).json({ error: "User not found" });
+  res.json({ success: true, user: { id: user.id, username: user.username, name: user.name, phone: user.phone, balance: user.balance, img: user.img } });
+});
+
+app.post("/api/user/change-password", authMiddleware, (req, res) => {
+  const { oldPassword, newPassword, confirmNewPassword } = req.body;
+  if (!oldPassword || !newPassword || !confirmNewPassword)
+    return res.status(400).json({ error: "All fields are required" });
+  if (newPassword !== confirmNewPassword)
+    return res.status(400).json({ error: "New passwords do not match" });
+  if (newPassword.length < 6)
+    return res.status(400).json({ error: "Password must be at least 6 characters" });
+
+  const user = db.findUserById(req.user.id);
+  if (!bcrypt.compareSync(oldPassword, user.password))
+    return res.status(400).json({ error: "Old password is incorrect" });
+
+  db.updatePassword(req.user.id, bcrypt.hashSync(newPassword, 10));
+  res.json({ success: true, message: "Password changed successfully" });
+});
+
+// ============ BANK DETAILS ============
+app.get("/api/user/bank-details", authMiddleware, (req, res) => {
+  const bank = db.getBankDetails(req.user.id);
+  res.json({ success: true, bank });
+});
+
+app.post("/api/user/bank-details", authMiddleware, (req, res) => {
+  const { accountHolder, accountNumber, ifscCode, bankName, upiId } = req.body;
+  if (!accountHolder || !accountNumber || !ifscCode || !bankName)
+    return res.status(400).json({ error: "All bank fields are required" });
+
+  db.saveBankDetails(req.user.id, { accountHolder, accountNumber, ifscCode, bankName, upiId: upiId || "" });
+  res.json({ success: true, message: "Bank details saved successfully" });
+});
+
+// ============ DEPOSIT / WITHDRAWAL ============
+app.post("/api/user/deposit", authMiddleware, (req, res) => {
+  const { amount, utrNumber } = req.body;
+  if (!amount || amount < 100)
+    return res.status(400).json({ error: "Minimum deposit is ₹100" });
+  if (!utrNumber || utrNumber.length < 6)
+    return res.status(400).json({ error: "Enter a valid UTR number" });
+
+  db.addTransaction(req.user.id, "deposit", amount, "pending", utrNumber);
+
+  res.json({ success: true, message: "Deposit request submitted! Awaiting admin approval." });
+});
+
+app.post("/api/user/withdraw", authMiddleware, (req, res) => {
+  const { amount } = req.body;
+  if (!amount || amount < 100)
+    return res.status(400).json({ error: "Minimum withdrawal is ₹100" });
+
+  const user = db.findUserById(req.user.id);
+  if (user.balance < amount)
+    return res.status(400).json({ error: "Insufficient balance" });
+  if (!db.getBankDetails(req.user.id))
+    return res.status(400).json({ error: "Please add bank details first" });
+
+  const newBalance = db.deductBalance(req.user.id, amount);
+  if (newBalance < 0) return res.status(400).json({ error: "Insufficient balance" });
+
+  db.addTransaction(req.user.id, "withdrawal", amount, "pending");
+
+  for (const [socketId, player] of players) {
+    if (player.userId === req.user.id) {
+      player.balance = newBalance;
+      io.to(socketId).emit("myInfo", { balance: player.balance, userType: true, userName: player.userName, img: player.img });
+    }
+  }
+
+  res.json({ success: true, message: "Withdrawal request submitted!", balance: newBalance });
+});
+
+app.get("/api/user/transactions", authMiddleware, (req, res) => {
+  res.json({ success: true, transactions: db.getTransactions(req.user.id) });
+});
+
+// ============ GAME HISTORY / LEADERBOARD ============
+app.post("/api/my-info", (req, res) => {
+  const { name } = req.body;
+  const userHistory = db.getGameHistoryByUser(name);
+  res.json({ status: true, data: userHistory });
+});
+
+app.get("/api/leaderboard", (req, res) => {
+  const realTop = db.getTopWinners();
+  const fakeEntries = BOT_NAMES.slice(0, 15).map((name) => ({
+    name,
+    totalWin: Math.floor(Math.random() * 50000) + 5000,
+  }));
+  const combined = [...realTop, ...fakeEntries].sort((a, b) => b.totalWin - a.totalWin).slice(0, 20);
+  res.json({ success: true, leaderboard: combined });
+});
+
+// ============ ADMIN ROUTES ============
+const ADMIN_KEY = "admin123";
+
+function adminMiddleware(req, res, next) {
+  const key = req.headers["x-admin-key"];
+  if (key !== ADMIN_KEY) return res.status(403).json({ error: "Unauthorized" });
+  next();
+}
+
+// Admin: set next crash point
+let manualCrashPoint = null;
+
+app.post("/api/admin/set-crash", adminMiddleware, (req, res) => {
+  const { crashPoint: cp } = req.body;
+  if (!cp || cp < 1.01) return res.status(400).json({ error: "Crash point must be at least 1.01" });
+  manualCrashPoint = cp;
+  console.log(`[ADMIN] Next crash set to ${cp}x`);
+  res.json({ success: true, message: `Next crash point set to ${cp}x` });
+});
+
+app.get("/api/admin/results", adminMiddleware, (req, res) => {
+  const results = history.slice(0, 20).map((cp, i) => ({ crashPoint: cp, time: `Round ${i + 1}` }));
+  res.json({ success: true, results });
+});
+
+app.get("/api/admin/users", adminMiddleware, (req, res) => {
+  const allUsers = db.getAllUsers ? db.getAllUsers() : [];
+  res.json({ success: true, users: allUsers });
+});
+
+app.post("/api/admin/add-money", adminMiddleware, (req, res) => {
+  const { userId, amount } = req.body;
+  if (!userId || !amount || amount <= 0) return res.status(400).json({ error: "Invalid data" });
+
+  const newBalance = db.addBalance(userId, amount);
+  if (newBalance === 0) return res.status(400).json({ error: "User not found" });
+
+  // Update live socket
+  for (const [socketId, player] of players) {
+    if (player.userId === userId) {
+      player.balance = newBalance;
+      io.to(socketId).emit("myInfo", { balance: player.balance, userType: true, userName: player.userName, img: player.img });
+      io.to(socketId).emit("success", `Admin added ₹${amount} to your account!`);
+    }
+  }
+
+  db.addTransaction(userId, "admin_credit", amount, "approved");
+  res.json({ success: true, message: `Added ₹${amount}`, balance: newBalance });
+});
+
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", players: players.size, gameState });
+});
+
+// ============ PUBLIC: DEPOSIT INFO ============
+app.get("/api/deposit-info", (req, res) => {
+  const settings = db.getSettings();
+  res.json({ success: true, upiId: settings.upiId, qrImageUrl: settings.qrImageUrl });
+});
+
+// ============ ADMIN: SETTINGS ============
+app.get("/api/admin/settings", adminMiddleware, (req, res) => {
+  const settings = db.getSettings();
+  res.json({ success: true, settings });
+});
+
+app.post("/api/admin/settings", adminMiddleware, (req, res) => {
+  const { upiId, qrImageUrl } = req.body;
+  const settings = db.saveSettings({ upiId: upiId || "", qrImageUrl: qrImageUrl || "" });
+  res.json({ success: true, message: "Settings saved", settings });
+});
+
+// ============ ADMIN: DEPOSIT REQUESTS ============
+app.get("/api/admin/deposits", adminMiddleware, (req, res) => {
+  const deposits = db.getAllTransactions("deposit");
+  // Attach username to each transaction
+  const enriched = deposits.map((txn) => {
+    const user = db.findUserById(txn.userId);
+    return { ...txn, username: user ? user.username : "Unknown" };
+  });
+  res.json({ success: true, deposits: enriched });
+});
+
+app.post("/api/admin/deposit-action", adminMiddleware, (req, res) => {
+  const { id, action } = req.body;
+  if (!id || !action) return res.status(400).json({ error: "Missing id or action" });
+
+  const txn = db.updateTransactionStatus(id, action === "approve" ? "approved" : "rejected");
+  if (!txn) return res.status(404).json({ error: "Transaction not found" });
+
+  if (action === "approve") {
+    const newBalance = db.addBalance(txn.userId, txn.amount);
+    // Update live socket
+    for (const [socketId, player] of players) {
+      if (player.userId === txn.userId) {
+        player.balance = newBalance;
+        io.to(socketId).emit("myInfo", { balance: player.balance, userType: true, userName: player.userName, img: player.img });
+        io.to(socketId).emit("success", `Your deposit of ₹${txn.amount} has been approved!`);
+      }
+    }
+  }
+
+  res.json({ success: true, message: `Deposit ${action === "approve" ? "approved" : "rejected"}` });
+});
+
+// ============ ADMIN: WITHDRAWAL REQUESTS ============
+app.get("/api/admin/withdrawals", adminMiddleware, (req, res) => {
+  const withdrawals = db.getAllTransactions("withdrawal");
+  const enriched = withdrawals.map((txn) => {
+    const user = db.findUserById(txn.userId);
+    return { ...txn, username: user ? user.username : "Unknown" };
+  });
+  res.json({ success: true, withdrawals: enriched });
+});
+
+app.post("/api/admin/withdrawal-action", adminMiddleware, (req, res) => {
+  const { id, action } = req.body;
+  if (!id || !action) return res.status(400).json({ error: "Missing id or action" });
+
+  const txn = db.updateTransactionStatus(id, action === "approve" ? "approved" : "rejected");
+  if (!txn) return res.status(404).json({ error: "Transaction not found" });
+
+  // If rejected, refund the balance
+  if (action === "reject") {
+    const newBalance = db.addBalance(txn.userId, txn.amount);
+    for (const [socketId, player] of players) {
+      if (player.userId === txn.userId) {
+        player.balance = newBalance;
+        io.to(socketId).emit("myInfo", { balance: player.balance, userType: true, userName: player.userName, img: player.img });
+        io.to(socketId).emit("success", `Your withdrawal of ₹${txn.amount} was rejected. Amount refunded.`);
+      }
+    }
+  }
+
+  res.json({ success: true, message: `Withdrawal ${action === "approve" ? "approved" : "rejected"}` });
+});
+
+// ============ ADMIN: DASHBOARD STATS ============
+app.get("/api/admin/stats", adminMiddleware, (req, res) => {
+  const stats = db.getStats();
+  res.json({ success: true, stats });
+});
+
+// ============ CRASH POINT ============
+function generateCrashPoint() {
+  // If admin set a manual crash point, use it (one-time)
+  if (manualCrashPoint !== null) {
+    const cp = manualCrashPoint;
+    manualCrashPoint = null;
+    console.log(`[ADMIN] Using manual crash point: ${cp}x`);
+    return cp;
+  }
+  const e = Math.random();
+  if (e < 0.04) return 1.0;
+  return Math.max(1.0, Math.floor((100 / (e * 100)) * 100) / 100);
+}
+
+// ============ BOT LOGIC ============
+function generateBots() {
+  const numBots = Math.floor(Math.random() * 12) + 8; // 8-20 bots per round
+  const bots = [];
+  // Shuffle all names and pick first N for variety each round
+  const shuffled = [...BOT_NAMES].sort(() => Math.random() - 0.5);
+  for (let i = 0; i < Math.min(numBots, shuffled.length); i++) {
+    bots.push({
+      name: shuffled[i],
+      betAmount: Math.floor(Math.random() * 900) + 20,
+      cashOut: 0,
+      cashouted: false,
+      target: Math.round((Math.random() * 5 + 1.1) * 100) / 100,
+      img: "",
+      bot: true,
+    });
+  }
+  return bots;
+}
+
+// ============ GAME LOOP ============
+function startGameLoop() { runBetPhase(); }
+
+function runBetPhase() {
+  gameState = "BET";
+  gameStartTime = Date.now();
+  crashPoint = generateCrashPoint();
+  bettedUsers = generateBots();
+
+  console.log(`[GAME] Bet phase. Crash at: ${crashPoint}x`);
+  io.emit("gameState", { currentNum: 0, currentSecondNum: 0, GameState: "BET", time: 0 });
+  io.emit("bettedUserInfo", bettedUsers);
+  io.emit("history", history.slice(0, 20));
+  io.emit("getBetLimits", BET_LIMITS);
+  setTimeout(() => runPlayPhase(), BET_PHASE_DURATION);
+}
+
+function runPlayPhase() {
+  gameState = "PLAYING";
+  gameStartTime = Date.now();
+  console.log(`[GAME] Playing. Crash: ${crashPoint}x`);
+  io.emit("gameState", { currentNum: 1, currentSecondNum: 0, GameState: "PLAYING", time: 0 });
+  simulateBotCashouts();
+
+  const interval = setInterval(() => {
+    const elapsed = (Date.now() - gameStartTime) / 1000;
+    const m = 1 + 0.06 * elapsed + Math.pow(0.06 * elapsed, 2) - Math.pow(0.04 * elapsed, 3) + Math.pow(0.04 * elapsed, 4);
+    if (m >= crashPoint) { clearInterval(interval); runGameEnd(); }
+  }, 50);
+}
+
+function simulateBotCashouts() {
+  bettedUsers.forEach((bot) => {
+    if (!bot.bot) return;
+    const t = bot.target <= 1.1 ? 0.5 : bot.target <= 1.5 ? 2 : bot.target <= 2 ? 3.5 : bot.target <= 3 ? 5 : bot.target <= 5 ? 7 : 9;
+    if (bot.target < crashPoint) {
+      setTimeout(() => {
+        if (gameState !== "PLAYING") return;
+        bot.cashouted = true;
+        bot.cashOut = bot.target;
+        io.emit("bettedUserInfo", bettedUsers);
+      }, Math.max(100, t * 1000));
+    }
+  });
+}
+
+function runGameEnd() {
+  gameState = "GAMEEND";
+  console.log(`[GAME] Crashed at ${crashPoint}x`);
+  history.unshift(crashPoint);
+  if (history.length > 50) history.pop();
+
+  io.emit("gameState", { currentNum: crashPoint, currentSecondNum: 0, GameState: "GAMEEND", time: 0 });
+
+  for (const [socketId, player] of players) {
+    const socket = io.sockets.sockets.get(socketId);
+    if (!socket) continue;
+
+    const fCashouted = player.f.cashouted;
+    const sCashouted = player.s.cashouted;
+    const fCashAmount = fCashouted ? player.f.cashAmount : 0;
+    const sCashAmount = sCashouted ? player.s.cashAmount : 0;
+
+    // Save game history
+    if (player.f.betted && player.userId) {
+      const profit = fCashouted ? fCashAmount - player.f.betAmount : -player.f.betAmount;
+      db.addGameHistory({ userId: player.userId, username: player.userName, betAmount: player.f.betAmount, cashoutAt: fCashouted ? player.f.cashOutAt : crashPoint, cashouted: fCashouted, profit });
+    }
+    if (player.s.betted && player.userId) {
+      const profit = sCashouted ? sCashAmount - player.s.betAmount : -player.s.betAmount;
+      db.addGameHistory({ userId: player.userId, username: player.userName, betAmount: player.s.betAmount, cashoutAt: sCashouted ? player.s.cashOutAt : crashPoint, cashouted: sCashouted, profit });
+    }
+
+    // Save balance
+    if (player.userId) db.updateUserBalance(player.userId, player.balance);
+
+    socket.emit("finishGame", {
+      balance: player.balance, userType: player.userType, userName: player.userName, img: player.img,
+      f: { auto: player.f.auto, betted: false, cashouted: fCashouted, betAmount: player.f.betAmount, cashAmount: fCashAmount, target: player.f.target },
+      s: { auto: player.s.auto, betted: false, cashouted: sCashouted, betAmount: player.s.betAmount, cashAmount: sCashAmount, target: player.s.target },
+    });
+
+    player.f = { auto: player.f.auto, betted: false, cashouted: false, betAmount: player.f.betAmount, cashAmount: 0, target: player.f.target, cashOutAt: 0 };
+    player.s = { auto: player.s.auto, betted: false, cashouted: false, betAmount: player.s.betAmount, cashAmount: 0, target: player.s.target, cashOutAt: 0 };
+  }
+
+  previousHand = [...bettedUsers];
+  io.emit("previousHand", previousHand);
+  setTimeout(() => runBetPhase(), 3000);
+}
+
+// ============ SOCKET HANDLERS ============
+io.on("connection", (socket) => {
+  console.log(`[SOCKET] Connected: ${socket.id}`);
+
+  socket.on("enterRoom", (data) => {
+    let userName = `Guest_${socket.id.slice(0, 6)}`;
+    let balance = 0;
+    let userId = null;
+    let img = BOT_AVATARS[Math.floor(Math.random() * BOT_AVATARS.length)];
+
+    if (data && data.token) {
+      try {
+        const decoded = jwt.verify(data.token, JWT_SECRET);
+        const user = db.findUserById(decoded.id);
+        if (user) { userName = user.username; balance = user.balance; userId = user.id; img = user.img; }
+      } catch (e) {}
+    }
+
+    const player = {
+      userId, balance, userType: !!userId, userName, img,
+      f: { auto: false, betted: false, cashouted: false, betAmount: 20, cashAmount: 0, target: 2, cashOutAt: 0 },
+      s: { auto: false, betted: false, cashouted: false, betAmount: 20, cashAmount: 0, target: 2, cashOutAt: 0 },
+    };
+    players.set(socket.id, player);
+
+    socket.emit("myInfo", { balance, userType: player.userType, userName, img });
+    socket.emit("getBetLimits", BET_LIMITS);
+    socket.emit("history", history.slice(0, 20));
+    socket.emit("bettedUserInfo", bettedUsers);
+    socket.emit("previousHand", previousHand);
+    socket.emit("gameState", { currentNum: gameState === "GAMEEND" ? crashPoint : 0, currentSecondNum: 0, GameState: gameState, time: Date.now() - gameStartTime });
+
+    console.log(`[SOCKET] ${userName} joined (₹${balance})`);
+  });
+
+  socket.on("playBet", (data) => {
+    const player = players.get(socket.id);
+    if (!player) return;
+    const { betAmount, target, type, auto } = data;
+
+    if (betAmount < BET_LIMITS.min || betAmount > BET_LIMITS.max) { socket.emit("error", { message: "Invalid bet amount", index: type }); return; }
+    if (player.balance < betAmount) { socket.emit("error", { message: "Insufficient balance", index: type }); return; }
+
+    player.balance -= betAmount;
+    player[type].betted = true;
+    player[type].betAmount = betAmount;
+    player[type].target = target || 2;
+    player[type].auto = auto || false;
+    player[type].cashouted = false;
+    player[type].cashAmount = 0;
+
+    bettedUsers.push({ name: player.userName, betAmount, cashOut: 0, cashouted: false, target: target || 2, img: player.img, bot: false });
+    io.emit("bettedUserInfo", bettedUsers);
+    socket.emit("myBetState", { balance: player.balance, userType: player.userType, userName: player.userName, img: player.img, f: player.f, s: player.s });
+    socket.emit("myInfo", { balance: player.balance, userType: player.userType, userName: player.userName, img: player.img });
+    console.log(`[BET] ${player.userName} bet ₹${betAmount} on ${type}`);
+  });
+
+  socket.on("cashOut", (data) => {
+    const player = players.get(socket.id);
+    if (!player) return;
+    const { type, endTarget } = data;
+
+    if (gameState !== "PLAYING") { socket.emit("error", { message: "Game not in playing state", index: type }); return; }
+    if (!player[type].betted || player[type].cashouted) return;
+
+    const elapsed = (Date.now() - gameStartTime) / 1000;
+    const currentMultiplier = 1 + 0.06 * elapsed + Math.pow(0.06 * elapsed, 2) - Math.pow(0.04 * elapsed, 3) + Math.pow(0.04 * elapsed, 4);
+    const cashOutAt = Math.min(endTarget, currentMultiplier);
+    const winAmount = player[type].betAmount * cashOutAt;
+
+    player[type].cashouted = true;
+    player[type].cashAmount = winAmount;
+    player[type].cashOutAt = cashOutAt;
+    player.balance += winAmount;
+
+    const entry = bettedUsers.find((u) => u.name === player.userName && !u.bot && !u.cashouted);
+    if (entry) { entry.cashouted = true; entry.cashOut = cashOutAt; }
+
+    io.emit("bettedUserInfo", bettedUsers);
+    socket.emit("myBetState", {
+      balance: player.balance, userType: player.userType, userName: player.userName, img: player.img,
+      f: { ...player.f, betted: type === "f" ? false : player.f.betted },
+      s: { ...player.s, betted: type === "s" ? false : player.s.betted },
+    });
+    socket.emit("myInfo", { balance: player.balance, userType: player.userType, userName: player.userName, img: player.img });
+    socket.emit("success", `Cashed out at ${cashOutAt.toFixed(2)}x! Won ₹${winAmount.toFixed(2)}`);
+    console.log(`[CASHOUT] ${player.userName} at ${cashOutAt.toFixed(2)}x, won ₹${winAmount.toFixed(2)}`);
+  });
+
+  socket.on("topUp", () => {
+    const player = players.get(socket.id);
+    if (!player) return;
+    player.balance += 5000;
+    if (player.userId) db.addBalance(player.userId, 5000);
+    socket.emit("myInfo", { balance: player.balance, userType: player.userType, userName: player.userName, img: player.img });
+    socket.emit("success", "Balance topped up! +₹5000");
+  });
+
+  socket.on("disconnect", () => {
+    const player = players.get(socket.id);
+    if (player && player.userId) db.updateUserBalance(player.userId, player.balance);
+    players.delete(socket.id);
+  });
+});
+
+// ============ START ============
+const PORT = 5000;
+
+  server.listen(PORT, () => {
+    console.log(`\n🚀 Aviator Crash Backend on http://localhost:${PORT}`);
+    console.log(`📡 Auth + Game + SQLite Database ready\n`);
+    startGameLoop();
+  });
+
+} // end startServer()
+
+startServer().catch((err) => {
+  console.error("Failed to start server:", err);
+  process.exit(1);
+});

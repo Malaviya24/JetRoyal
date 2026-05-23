@@ -1,0 +1,6 @@
+node_modules/
+server/node_modules/
+server/aviator.sqlite
+server/data.json
+build/
+.env
