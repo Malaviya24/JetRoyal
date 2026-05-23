@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { config } from "../config";
+import logo from "../assets/images/logo.svg";
 import "./auth.scss";
 
 export default function Login() {
@@ -29,7 +30,7 @@ export default function Login() {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
         toast.success("Login successful!");
-        navigate("/game");
+        navigate("/");
       } else {
         toast.error(data.error || "Login failed");
       }
@@ -43,9 +44,9 @@ export default function Login() {
     <div className="auth-page">
       <div className="auth-container">
         <div className="auth-header">
-          <div className="auth-logo">✈️</div>
-          <h1>Aviator Crash</h1>
-          <p>Login to your account</p>
+          <img src={logo} alt="JetRoyal" className="auth-logo-img" />
+          <h1>Welcome Back</h1>
+          <p>Login to your account to play</p>
         </div>
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">

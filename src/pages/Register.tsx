@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { config } from "../config";
+import logo from "../assets/images/logo.svg";
 import "./auth.scss";
 
 export default function Register() {
@@ -40,7 +41,7 @@ export default function Register() {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
         toast.success("Registration successful!");
-        navigate("/game");
+        navigate("/");
       } else {
         toast.error(data.error || "Registration failed");
       }
@@ -54,9 +55,9 @@ export default function Register() {
     <div className="auth-page">
       <div className="auth-container">
         <div className="auth-header">
-          <div className="auth-logo">✈️</div>
-          <h1>Aviator Crash</h1>
-          <p>Create your account</p>
+          <img src={logo} alt="JetRoyal" className="auth-logo-img" />
+          <h1>Create Account</h1>
+          <p>Register to start playing</p>
         </div>
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
