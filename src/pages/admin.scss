@@ -1505,3 +1505,50 @@ $gradient-gold: linear-gradient(135deg, #e69308 0%, #ff6b00 100%);
     .topbar-icon     { width: 32px; height: 32px; }
   }
 }
+
+// CRASH NOW button
+.crash-now-card {
+  border-color: rgba(230, 57, 70, 0.3) !important;
+}
+
+.crash-now-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 32px;
+  background: linear-gradient(135deg, #e63946, #c0392b);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 8px 24px rgba(230, 57, 70, 0.4);
+  transition: all 0.15s;
+  animation: crashPulse 2s ease-in-out infinite;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 12px 32px rgba(230, 57, 70, 0.6);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    animation: none;
+    box-shadow: none;
+  }
+}
+
+@keyframes crashPulse {
+  0%, 100% { box-shadow: 0 8px 24px rgba(230, 57, 70, 0.4); }
+  50% { box-shadow: 0 8px 32px rgba(230, 57, 70, 0.7); }
+}

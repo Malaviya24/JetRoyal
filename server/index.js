@@ -334,6 +334,17 @@ app.post("/api/admin/clear-crash-queue", adminMiddleware, (req, res) => {
   res.json({ success: true, message: "Queue cleared" });
 });
 
+// Admin: Force crash NOW (immediately end current round)
+let forceCrashNow = false;
+
+app.post("/api/admin/crash-now", adminMiddleware, (req, res) => {
+  if (gameState !== "PLAYING") {
+    return res.status(400).json({ error: "Game is not in PLAYING state" });
+  }
+  forceCrashNow = true;
+  res.json({ success: true, message: "Crash triggered! Plane will crash immediately." });
+});
+
 // Live bets — current round
 app.get("/api/admin/live-bets", adminMiddleware, (req, res) => {
   const realPlayers = bettedUsers.filter((u) => !u.bot);
@@ -687,6 +698,14 @@ function runPlayPhase() {
   const interval = setInterval(() => {
     const elapsed = (Date.now() - gameStartTime) / 1000;
     const m = 1 + 0.06 * elapsed + Math.pow(0.06 * elapsed, 2) - Math.pow(0.04 * elapsed, 3) + Math.pow(0.04 * elapsed, 4);
+    // Force crash if admin triggered it
+    if (forceCrashNow) {
+      forceCrashNow = false;
+      crashPoint = Math.round(m * 100) / 100; // Set crash point to current multiplier
+      clearInterval(interval);
+      runGameEnd();
+      return;
+    }
     if (m >= crashPoint) { clearInterval(interval); runGameEnd(); }
   }, 50);
 }

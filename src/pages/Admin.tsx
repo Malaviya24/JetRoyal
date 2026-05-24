@@ -1044,13 +1044,45 @@ export default function Admin() {
                           key={v}
                           onClick={() => {
                             setCrashPoint(String(v));
-                            handleSetCrash();
                           }}
+                          className={crashPoint === String(v) ? "active" : ""}
                         >
                           {v}x
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  {/* CRASH NOW button */}
+                  <div className="detail-card crash-now-card">
+                    <h3>
+                      <span className="header-icon" style={{ color: "#e63946" }}>
+                        <Icons.Crash size={16} />
+                      </span>
+                      Emergency Crash
+                    </h3>
+                    <p style={{ color: "#9ea0a3", fontSize: "12px", margin: "0 0 14px" }}>
+                      Force the plane to crash immediately at the current multiplier. Only works during PLAYING phase.
+                    </p>
+                    <button
+                      className="crash-now-btn"
+                      onClick={async () => {
+                        if (!window.confirm("Crash the plane NOW?")) return;
+                        try {
+                          const res = await fetch(`${config.api}/admin/crash-now`, {
+                            method: "POST",
+                            headers: { "x-admin-key": ADMIN_PASSWORD },
+                          });
+                          const data = await res.json();
+                          if (data.success) toast.success(data.message);
+                          else toast.error(data.error || "Failed");
+                        } catch (e) { toast.error("Server error"); }
+                      }}
+                      disabled={liveBets?.gameState !== "PLAYING"}
+                    >
+                      <Icons.Crash size={18} />
+                      <span>CRASH NOW</span>
+                    </button>
                   </div>
 
                   <div className="live-tables">
