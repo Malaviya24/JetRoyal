@@ -183,26 +183,16 @@ const Bet = ({ index, add, setAdd }: BetProps) => {
 	}
 
 	useEffect(() => {
-		if (fbetted) {
-			if (state.fautoCashoutState) {
-				if (cashOut < currentTarget) {
-					updateUserBetState({ [`${index}betted`]: false });
-					callCashOut(cashOut, index);
-				}
-			}
+		// Auto-cashout only triggers during PLAYING phase, not BET phase
+		if (GameState !== "PLAYING") return;
+		if (!betted) return;
+		if (!autoCashoutState) return;
+		// Trigger when current multiplier reaches user's target
+		if (currentTarget >= cashOut && cashOut > 1) {
+			updateUserBetState({ [`${index}betted`]: false });
+			callCashOut(cashOut, index);
 		}
-	}, [currentTarget, fbetted, state.fautoCashoutState, state.userInfo.f.target, cashOut, index, updateUserBetState])
-
-	useEffect(() => {
-		if (sbetted) {
-			if (state.sautoCashoutState) {
-				if (cashOut < currentTarget) {
-					updateUserBetState({ [`${index}betted`]: false });
-					callCashOut(cashOut, index);
-				}
-			}
-		}
-	}, [currentTarget, sbetted, state.sautoCashoutState, state.userInfo.s.target, cashOut, index, updateUserBetState])
+	}, [currentTarget, betted, autoCashoutState, cashOut, GameState, index, updateUserBetState])
 
 	useEffect(() => {
 		setMyBetAmount(betAmount);
@@ -351,21 +341,15 @@ const Bet = ({ index, add, setAdd }: BetProps) => {
 							<div className="cashout-block">
 								<div className="cashout-switcher">
 									<label className="label">Auto Cash Out</label>
-									{betted || betState ? (
-										<div className={`input-switch ${autoCashoutState ? "" : "off"}`}>
-											<span className="oval"></span>
-										</div>
-									) : (
-										<div onClick={() => { update({ [`${index}autoCashoutState`]: !autoCashoutState }) }} className={`input-switch ${autoCashoutState ? "" : "off"}`}>
-											<span className="oval"></span>
-										</div>
-									)}
+									<div onClick={() => { update({ [`${index}autoCashoutState`]: !autoCashoutState }) }} className={`input-switch ${autoCashoutState ? "" : "off"}`}>
+										<span className="oval"></span>
+									</div>
 								</div>
 								<div className="cashout-snipper-wrapper">
 									<div className="cashout-snipper">
-										<div className={`snipper small ${autoCashoutState && !betState ? "" : "disabled"}`}>
+										<div className={`snipper small ${autoCashoutState ? "" : "disabled"}`}>
 											<div className="input">
-												{autoCashoutState && !betState ? (
+												{autoCashoutState && !betted && !betState ? (
 													<input type="number"
 														onChange={(e) => { update({ ...state, userInfo: { ...state.userInfo, [`${index}`]: { ...state.userInfo[index], target: Number(e.target.value) } } }); setCashOut(Number(e.target.value)) }}
 														value={cashOut}
