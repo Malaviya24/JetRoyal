@@ -79,6 +79,14 @@ async function initDB() {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS crash_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      crash_point REAL NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
   // Insert default settings if not exists
   const settingsRow = db.exec("SELECT COUNT(*) as cnt FROM settings");
   if (settingsRow.length === 0 || settingsRow[0].values[0][0] === 0) {
@@ -246,6 +254,19 @@ module.exports = {
 
   getTopWinners() {
     return getAll("SELECT username as name, SUM(profit) as totalWin FROM game_history WHERE cashouted = 1 AND profit > 0 GROUP BY username ORDER BY totalWin DESC LIMIT 10");
+  },
+
+  // Crash History (round results)
+  addCrashResult(crashPoint) {
+    run("INSERT INTO crash_history (crash_point) VALUES (?)", [crashPoint]);
+  },
+
+  getRecentCrashHistory(limit = 50) {
+    return getAll(`SELECT crash_point as crashPoint, created_at as time FROM crash_history ORDER BY id DESC LIMIT ${limit}`);
+  },
+
+  getAllCrashHistory() {
+    return getAll("SELECT crash_point as crashPoint, created_at as time FROM crash_history ORDER BY id DESC");
   },
 
   // Delete User

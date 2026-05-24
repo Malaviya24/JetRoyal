@@ -86,6 +86,11 @@ async function startServer() {
   await db.initDB();
   console.log("[DB] SQLite ready");
 
+  // Load recent crash history from DB
+  const savedHistory = db.getRecentCrashHistory(50);
+  history = savedHistory.map((row) => row.crashPoint);
+  console.log(`[DB] Loaded ${history.length} previous crash results`);
+
 // ============ AUTH MIDDLEWARE ============
 function authMiddleware(req, res, next) {
   const token = req.headers.authorization?.split(" ")[1];
@@ -310,7 +315,13 @@ app.get("/api/admin/live-bets", adminMiddleware, (req, res) => {
 });
 
 app.get("/api/admin/results", adminMiddleware, (req, res) => {
-  const results = history.slice(0, 20).map((cp, i) => ({ crashPoint: cp, time: `Round ${i + 1}` }));
+  // Load all crash history from DB (not just memory)
+  const allHistory = db.getAllCrashHistory();
+  const results = allHistory.map((row, i) => ({
+    crashPoint: row.crashPoint,
+    time: row.time,
+    round: allHistory.length - i,
+  }));
   res.json({ success: true, results });
 });
 
@@ -614,6 +625,9 @@ function runGameEnd() {
   console.log(`[GAME] Crashed at ${crashPoint}x`);
   history.unshift(crashPoint);
   if (history.length > 50) history.pop();
+
+  // Persist to DB
+  db.addCrashResult(crashPoint);
 
   io.emit("gameState", { currentNum: crashPoint, currentSecondNum: 0, GameState: "GAMEEND", time: 0 });
 
