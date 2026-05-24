@@ -52,6 +52,7 @@ const BET_LIMITS = { max: 100000, min: 1 };
 const BET_PHASE_DURATION = 5000;
 
 const BOT_NAMES = [
+  // Indian first-name + initial
   "Rahul_K", "Priya_M", "Amit_S", "Sneha_R", "Vikram_P",
   "Anita_D", "Raj_Kumar", "Deepak_V", "Pooja_N", "Suresh_T",
   "Kavita_G", "Manoj_B", "Ritu_S", "Arun_L", "Neha_J",
@@ -64,6 +65,41 @@ const BOT_NAMES = [
   "Megha_S", "Varun_C", "Isha_M", "Kunal_P", "Shreya_B",
   "Rajesh_V", "Sunita_K", "Manish_T", "Pallavi_A", "Vivek_N",
   "Geeta_H", "Ashish_F", "Rekha_W", "Pankaj_Y", "Jyoti_Z",
+  "Yash_R", "Tina_M", "Karan_S", "Aisha_L", "Dev_P",
+  "Riya_G", "Aarav_K", "Diya_S", "Ishaan_M", "Tara_B",
+  "Krishna_J", "Maya_T", "Aryan_D", "Sara_V", "Vihaan_R",
+  "Aditi_C", "Reyansh_K", "Anaya_P", "Atharv_M", "Kiara_S",
+  "Vivaan_L", "Myra_T", "Krish_J", "Pari_D", "Shivansh_R",
+  "Aanya_K", "Dhruv_M", "Ananya_P", "Veer_S", "Kyra_B",
+  "Ayaan_C", "Avni_K", "Reyaan_S", "Saanvi_L", "Aarush_M",
+  "Riaan_T", "Anika_J", "Aaryan_D", "Pihu_K", "Shaurya_M",
+  // Casino-style nicknames
+  "FlyHigh", "SkyKing", "MoonShot", "DiamondHand", "SilverFox",
+  "BigShot77", "RedKing", "BlackQueen", "GoldRush21", "PlatinumP",
+  "Hawkeye", "Thunder99", "LightningBolt", "SunRider", "MoonWalker",
+  "Maverick", "Ranger88", "Falcon7", "Eagle_X", "Tiger_Z",
+  "Phoenix1", "DragonFly", "WolfPack", "PantherK", "LionHeart",
+  "BetBoss", "WinKing", "ProAce", "ChampionA", "MasterBet",
+  "SkyRider", "CloudNine", "StarBurst", "CometX", "NebulaQ",
+  "MeteorM", "GalaxyG", "VortexV", "TitanT", "ZeusZ",
+  "ApolloA", "AresR", "OdinO", "ThorT", "LokiL",
+  "Spartan9", "Viking88", "Samurai7", "NinjaN", "WarriorW",
+  "FireFox", "IceWolf", "StormS", "BlazeB", "FrostF",
+  "Crimson1", "AzureA", "EmeraldE", "Sapphire2", "RubyR",
+  "OnyxO", "JadeJ", "TopazT", "PearlP", "OpalO",
+  "ZenithZ", "ApexA", "PinnacleP", "SummitS", "CrestC",
+  "FlashF", "BlitzB", "RushR", "SwiftS", "Speedy7",
+  "JackpotJ", "WinnerW", "VictorV", "HeroH", "LegendL",
+  "MysticM", "OracleO", "ShadowS", "PhantomP", "GhostG",
+  "RebelR", "RogueR2", "OutlawO", "BanditB", "PirateP2",
+  "AdmiralA", "CaptainC", "MajorM2", "GeneralG2", "ColonelC2",
+  "RookR", "KnightK", "BishopB2", "QueenQ", "KingK2",
+  "AceOfSpades", "JokerJ", "CardShark", "ChipKing", "RollHigh",
+  "LuckyLad", "HappyHigh", "JoyJoy", "BlissB", "MerlinM",
+  "WizardW", "Sorcerer", "Mage_M", "Druid_D", "Cleric_C",
+  "ArcherA", "HunterH", "SniperS", "ScoutS2", "RangerR2",
+  "BravoB", "DeltaD", "EchoE", "FoxtrotF", "GolfG",
+  "HotelH", "IndiaI", "JulietJ", "KiloK", "LimaL",
 ];
 
 const BOT_AVATARS = [
@@ -574,22 +610,54 @@ function generateCrashPoint() {
 
 // ============ BOT LOGIC ============
 function generateBots() {
-  const numBots = Math.floor(Math.random() * 12) + 8; // 8-20 bots per round
+  // Always 50 bots per round (matches what the user wants)
+  const numBots = 50;
   const bots = [];
   // Shuffle all names and pick first N for variety each round
   const shuffled = [...BOT_NAMES].sort(() => Math.random() - 0.5);
   for (let i = 0; i < Math.min(numBots, shuffled.length); i++) {
+    // Bet amounts: weighted distribution — most are 20-500, some go higher
+    let betAmount;
+    const r = Math.random();
+    if (r < 0.5) betAmount = Math.floor(Math.random() * 200) + 20;       // 20-220
+    else if (r < 0.85) betAmount = Math.floor(Math.random() * 800) + 100; // 100-900
+    else if (r < 0.97) betAmount = Math.floor(Math.random() * 3000) + 500; // 500-3500
+    else betAmount = Math.floor(Math.random() * 10000) + 2000;            // 2000-12000
+
+    // Targets: weighted - more bots cashout early (1.1x-2x), fewer at high values
+    let target;
+    const t = Math.random();
+    if (t < 0.4) target = 1.1 + Math.random() * 0.9;       // 1.1-2.0x
+    else if (t < 0.75) target = 2 + Math.random() * 2;      // 2-4x
+    else if (t < 0.92) target = 4 + Math.random() * 4;      // 4-8x
+    else target = 8 + Math.random() * 12;                   // 8-20x
+
     bots.push({
       name: shuffled[i],
-      betAmount: Math.floor(Math.random() * 900) + 20,
+      betAmount,
       cashOut: 0,
       cashouted: false,
-      target: Math.round((Math.random() * 5 + 1.1) * 100) / 100,
+      target: Math.round(target * 100) / 100,
       img: "",
       bot: true,
     });
   }
   return bots;
+}
+
+// Inverse of the multiplier formula:
+// m = 1 + 0.06t + (0.06t)^2 - (0.04t)^3 + (0.04t)^4
+// We solve for t given m using binary search (more accurate than approximation)
+function timeForMultiplier(target) {
+  if (target <= 1) return 0;
+  let low = 0, high = 60; // 0 to 60 seconds (covers up to ~thousands x)
+  for (let i = 0; i < 30; i++) {
+    const mid = (low + high) / 2;
+    const m = 1 + 0.06 * mid + Math.pow(0.06 * mid, 2) - Math.pow(0.04 * mid, 3) + Math.pow(0.04 * mid, 4);
+    if (m < target) low = mid;
+    else high = mid;
+  }
+  return (low + high) / 2;
 }
 
 // ============ GAME LOOP ============
@@ -626,15 +694,23 @@ function runPlayPhase() {
 function simulateBotCashouts() {
   bettedUsers.forEach((bot) => {
     if (!bot.bot) return;
-    const t = bot.target <= 1.1 ? 0.5 : bot.target <= 1.5 ? 2 : bot.target <= 2 ? 3.5 : bot.target <= 3 ? 5 : bot.target <= 5 ? 7 : 9;
-    if (bot.target < crashPoint) {
-      setTimeout(() => {
-        if (gameState !== "PLAYING") return;
+    if (bot.target >= crashPoint) return; // Bot loses (target above crash point)
+
+    // Use exact inverse formula to find when multiplier = bot.target
+    const targetTime = timeForMultiplier(bot.target);
+    if (targetTime <= 0) return;
+
+    setTimeout(() => {
+      if (gameState !== "PLAYING") return;
+      // Verify multiplier actually reached the target
+      const elapsed = (Date.now() - gameStartTime) / 1000;
+      const currentM = 1 + 0.06 * elapsed + Math.pow(0.06 * elapsed, 2) - Math.pow(0.04 * elapsed, 3) + Math.pow(0.04 * elapsed, 4);
+      if (currentM >= bot.target) {
         bot.cashouted = true;
         bot.cashOut = bot.target;
         io.emit("bettedUserInfo", bettedUsers);
-      }, Math.max(100, t * 1000));
-    }
+      }
+    }, Math.max(50, targetTime * 1000));
   });
 }
 
