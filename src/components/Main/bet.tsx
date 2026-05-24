@@ -233,8 +233,12 @@ const Bet = ({ index, add, setAdd }: BetProps) => {
 										:
 										<input type="number" value={Number(myBetAmount)}
 											onChange={e => {
-												Number(e.target.value) > maxBet ? update({ ...state, userInfo: { ...state.userInfo, [`${index}`]: { betAmount: maxBet } } }) : Number(e.target.value) < 0 ? update({ ...state, userInfo: { ...state.userInfo, [`${index}`]: { betAmount: 0 } } }) :
-													update({ ...state, userInfo: { ...state.userInfo, [`${index}`]: { betAmount: Number(e.target.value) } } });
+												const val = Number(e.target.value);
+												const newAmount = val > maxBet ? maxBet : val < 0 ? 0 : val;
+												setMyBetAmount(newAmount);
+												let attrs = state;
+												attrs.userInfo[index].betAmount = newAmount;
+												update(attrs);
 											}}></input>
 									}
 								</div>
