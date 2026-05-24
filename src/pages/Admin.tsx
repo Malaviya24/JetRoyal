@@ -1067,7 +1067,6 @@ export default function Admin() {
                     <button
                       className="crash-now-btn"
                       onClick={async () => {
-                        if (!window.confirm("Crash the plane NOW?")) return;
                         try {
                           const res = await fetch(`${config.api}/admin/crash-now`, {
                             method: "POST",
