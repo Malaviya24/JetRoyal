@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
-import logo from "../assets/images/jetroyal-logo.svg";
+import logo from "../assets/images/logo.svg";
 import "../index.scss";
 import Context from "../context";
 
@@ -29,10 +29,6 @@ export default function Header() {
           )}
           <div className="logo-container">
             <img src={logo} alt="logo" className="logo"></img>
-          </div>
-          <div className="brand-name">
-            <span className="brand-jet">Jet</span><span className="brand-royal">Royal</span>
-            <span className="brand-tagline">Aviator</span>
           </div>
         </div>
         <div className="second-block">

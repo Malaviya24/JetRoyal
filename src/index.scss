@@ -142,22 +142,15 @@ code {
   }
 
   .logo-container {
-    width: 36px;
-    height: 36px;
+    width: 84px;
     margin-left: 10px;
+    height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
 
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-
     @media (max-width:900px) {
-      width: 32px;
-      height: 32px;
+      width: 72px;
     }
   }
 
