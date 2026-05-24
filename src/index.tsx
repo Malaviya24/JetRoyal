@@ -29,52 +29,59 @@ function AuthRedirect({ children }: { children: React.ReactNode }) {
 	return <>{children}</>;
 }
 
-// Pages that overlay the game
-const OVERLAY_PAGES = ['/deposit', '/withdraw', '/account', '/account/password', '/account/bank', '/bet-history'];
+// Standalone pages don't have the game running underneath
+const STANDALONE_PAGES = ['/admin'];
+// Auth pages: also standalone but separate to avoid Unity loading on these public routes
+const AUTH_PAGES = ['/login', '/register'];
 
 function AppLayout() {
 	const location = useLocation();
-	const isStandalonePage = location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/admin';
-	const isOverlayPage = OVERLAY_PAGES.some(p => location.pathname.startsWith(p));
-	const isGamePage = !isStandalonePage;
+	const isStandalone = STANDALONE_PAGES.includes(location.pathname);
+	const isAuthPage = AUTH_PAGES.includes(location.pathname);
+	// Game stays mounted on home, deposit, withdraw, account, bet-history, etc.
+	const showGame = !isStandalone && !isAuthPage;
 
 	return (
 		<>
-			{/* Game is always mounted on non-standalone pages to keep Unity alive */}
-			{isGamePage && (
+			{/* Game is mounted ONCE for the lifetime of the session */}
+			{showGame && (
 				<div style={{ height: '100%', position: 'relative' }}>
 					<Provider>
 						<App />
 					</Provider>
 					{/* Overlay pages render on top of the game */}
-					{isOverlayPage && (
-						<div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, background: '#0e0e0e', overflowY: 'auto' }}>
-							<Routes>
-								<Route path="/deposit" element={<ProtectedRoute><Deposit /></ProtectedRoute>} />
-								<Route path="/withdraw" element={<ProtectedRoute><Withdraw /></ProtectedRoute>} />
-								<Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
-								<Route path="/account/password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
-								<Route path="/account/bank" element={<ProtectedRoute><BankDetails /></ProtectedRoute>} />
-								<Route path="/bet-history" element={<ProtectedRoute><BetHistory /></ProtectedRoute>} />
-							</Routes>
-						</div>
-					)}
+					<div style={{
+						position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+						zIndex: 1000,
+						background: '#0e0e0e',
+						overflowY: 'auto',
+						display: location.pathname === '/' || location.pathname === '/game' ? 'none' : 'block'
+					}}>
+						<Routes>
+							<Route path="/deposit" element={<ProtectedRoute><Deposit /></ProtectedRoute>} />
+							<Route path="/withdraw" element={<ProtectedRoute><Withdraw /></ProtectedRoute>} />
+							<Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
+							<Route path="/account/password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
+							<Route path="/account/bank" element={<ProtectedRoute><BankDetails /></ProtectedRoute>} />
+							<Route path="/bet-history" element={<ProtectedRoute><BetHistory /></ProtectedRoute>} />
+							<Route path="*" element={<></>} />
+						</Routes>
+					</div>
 				</div>
 			)}
 
-			{/* Standalone pages */}
-			{isStandalonePage && (
+			{/* Auth pages — completely separate, no Unity */}
+			{isAuthPage && (
 				<Routes>
 					<Route path="/login" element={<AuthRedirect><Login /></AuthRedirect>} />
 					<Route path="/register" element={<AuthRedirect><Register /></AuthRedirect>} />
-					<Route path="/admin" element={<Admin />} />
 				</Routes>
 			)}
 
-			{/* Default redirect for unknown paths */}
-			{!isGamePage && !isStandalonePage && (
+			{/* Admin page — completely separate */}
+			{isStandalone && (
 				<Routes>
-					<Route path="*" element={<Navigate to="/" replace />} />
+					<Route path="/admin" element={<Admin />} />
 				</Routes>
 			)}
 

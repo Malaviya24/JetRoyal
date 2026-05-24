@@ -266,12 +266,14 @@ export const Provider = ({ children }: any) => {
     });
 
     socket.on("myBetState", (user: UserType) => {
-      const attrs = userBetState;
-      attrs.fbetState = false;
-      attrs.fbetted = user.f.betted;
-      attrs.sbetState = false;
-      attrs.sbetted = user.s.betted;
-      setUserBetState(attrs);
+      // Use functional update to ensure React re-renders properly
+      setUserBetState((prev) => ({
+        ...prev,
+        fbetState: false,
+        fbetted: user.f.betted,
+        sbetState: false,
+        sbetted: user.s.betted,
+      }));
     });
 
     socket.on("myInfo", (user: UserType) => {

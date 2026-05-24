@@ -5,7 +5,6 @@ class SoundManager {
   private crashSound: HTMLAudioElement | null = null;
   private cashoutSound: HTMLAudioElement | null = null;
   private initialized: boolean = false;
-  private bgMusicPlaying: boolean = false;
 
   init() {
     if (this.initialized) return;
@@ -30,19 +29,25 @@ class SoundManager {
     this.initialized = true;
   }
 
-  // Start background music (call after user interaction)
+  // Start background music — always tries to play (idempotent)
   playBackground() {
-    if (!this.bgMusic) this.init();
-    if (this.bgMusicPlaying) return;
-
-    this.bgMusic!.play().then(() => {
-      this.bgMusicPlaying = true;
-    }).catch(() => {
-      this.bgMusicPlaying = false;
-    });
+    if (!this.initialized) this.init();
+    if (!this.bgMusic) return;
+    // If already playing, do nothing
+    if (!this.bgMusic.paused) return;
+    this.bgMusic.play().catch(() => {});
   }
 
-  // Play takeoff sound when plane starts flying
+  // Force restart background music (called on page mount/refresh)
+  ensureBackground() {
+    if (!this.initialized) this.init();
+    if (!this.bgMusic) return;
+    // Reset to start if it was stuck
+    if (this.bgMusic.paused) {
+      this.bgMusic.play().catch(() => {});
+    }
+  }
+
   playTakeoff() {
     if (!this.initialized) this.init();
     if (!this.takeoffSound) return;
@@ -50,30 +55,25 @@ class SoundManager {
     this.takeoffSound.play().catch(() => {});
   }
 
-  // Play crash sound when plane crashes
   playCrash() {
     if (!this.initialized) this.init();
     if (!this.crashSound) return;
     this.crashSound.currentTime = 0;
     this.crashSound.play().catch(() => {});
-
     if (this.takeoffSound) {
       this.takeoffSound.pause();
       this.takeoffSound.currentTime = 0;
     }
   }
 
-  // Play cashout win sound
   playCashout() {
     if (!this.initialized) this.init();
-    if (!this.cashoutSound) return;
-    // Create a new Audio instance each time to avoid overlap issues
+    // Use a fresh Audio instance for cashout to allow rapid overlapping plays
     const sound = new Audio("/sounds/ka-ching.mp3");
     sound.volume = 1.0;
     sound.play().catch(() => {});
   }
 
-  // Stop takeoff sound
   stopTakeoff() {
     if (this.takeoffSound) {
       this.takeoffSound.pause();
@@ -81,7 +81,6 @@ class SoundManager {
     }
   }
 
-  // Mute/unmute all
   setMuted(muted: boolean) {
     if (this.bgMusic) this.bgMusic.muted = muted;
     if (this.takeoffSound) this.takeoffSound.muted = muted;
@@ -89,12 +88,10 @@ class SoundManager {
     if (this.cashoutSound) this.cashoutSound.muted = muted;
   }
 
-  // Set background volume (0-1)
   setBgVolume(vol: number) {
     if (this.bgMusic) this.bgMusic.volume = vol;
   }
 }
 
-// Singleton instance
 const soundManager = new SoundManager();
 export default soundManager;
