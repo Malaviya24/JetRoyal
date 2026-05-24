@@ -1450,7 +1450,14 @@ export default function Admin() {
                     </label>
                     {settings.qrImageUrl && (
                       <div className="qr-preview">
-                        <img src={settings.qrImageUrl} alt="QR Preview" />
+                        <img
+                          src={
+                            /^https?:\/\//i.test(settings.qrImageUrl)
+                              ? settings.qrImageUrl
+                              : `${(process.env.REACT_APP_API_URL || "").replace(/\/$/, "")}${settings.qrImageUrl}`
+                          }
+                          alt="QR Preview"
+                        />
                         <button
                           type="button"
                           className="qr-remove-btn"
@@ -1467,6 +1474,39 @@ export default function Admin() {
                   <Icons.Save size={14} />
                   <span>Save Settings</span>
                 </button>
+              </div>
+
+              {/* Deposit page preview — what users will see */}
+              <h2 className="section-title" style={{ marginTop: 28 }}>User Deposit Preview</h2>
+              <p className="desc">This is how the deposit screen will look to your users.</p>
+              <div className="deposit-preview-card">
+                <div className="dp-icon">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5a3500" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h16v6" />
+                    <path d="M3 7v12a2 2 0 0 0 2 2h16v-5" />
+                    <circle cx="17" cy="14" r="1.5" fill="#5a3500" />
+                  </svg>
+                </div>
+                <div className="dp-title">Deposit Funds</div>
+                <div className="dp-subtitle">Load points securely to your wallet</div>
+                <div className="dp-qr-wrap">
+                  {settings.qrImageUrl ? (
+                    <img
+                      src={
+                        /^https?:\/\//i.test(settings.qrImageUrl)
+                          ? settings.qrImageUrl
+                          : `${(process.env.REACT_APP_API_URL || "").replace(/\/$/, "")}${settings.qrImageUrl}`
+                      }
+                      alt="QR Preview"
+                    />
+                  ) : (
+                    <div className="dp-qr-placeholder">No QR uploaded yet</div>
+                  )}
+                </div>
+                <div className="dp-upi">
+                  <span className="dp-upi-label">UPI ID:</span>
+                  <span className="dp-upi-value">{settings.upiId || "Not set"}</span>
+                </div>
               </div>
             </div>
           )}

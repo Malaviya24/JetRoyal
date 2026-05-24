@@ -27,7 +27,13 @@ export default function Header() {
               </svg>
             </button>
           )}
-          <div className="logo-container">
+          <div
+            className="logo-container"
+            onClick={() => { window.location.href = "/"; }}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") window.location.href = "/"; }}
+          >
             <img src={logo} alt="logo" className="logo"></img>
           </div>
         </div>
@@ -38,7 +44,26 @@ export default function Header() {
           </button>
           {isLoggedIn ? (
             <div className="d-flex">
-              <div className="balance">
+              <div
+                className="balance"
+                onClick={() => navigate("/deposit")}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigate("/deposit"); }}
+                title="Click to deposit"
+              >
+                <span className="balance-coin" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" fill="url(#coinGrad)" stroke="#b46e00" strokeWidth="1" />
+                    <text x="12" y="16" textAnchor="middle" fontSize="13" fontWeight="700" fill="#5a3500" fontFamily="Arial, sans-serif">$</text>
+                    <defs>
+                      <linearGradient id="coinGrad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#FFD700" />
+                        <stop offset="100%" stopColor="#e69308" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                </span>
                 <span className="amount">{Number(state.userInfo.balance).toFixed(2)} </span>
                 <span className="currency">&nbsp;INR</span>
               </div>

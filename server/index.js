@@ -367,9 +367,20 @@ app.get("/api/admin/settings", adminMiddleware, (req, res) => {
 });
 
 app.post("/api/admin/settings", adminMiddleware, (req, res) => {
-  const { upiId, qrImageUrl } = req.body;
-  const settings = db.saveSettings({ upiId: upiId || "", qrImageUrl: qrImageUrl || "" });
-  res.json({ success: true, message: "Settings saved", settings });
+  try {
+    const { upiId, qrImageUrl } = req.body || {};
+    // Load current settings, then merge — allows saving just upiId or just qrImageUrl
+    const current = db.getSettings();
+    const merged = {
+      upiId: typeof upiId === "string" ? upiId : (current.upiId || ""),
+      qrImageUrl: typeof qrImageUrl === "string" ? qrImageUrl : (current.qrImageUrl || ""),
+    };
+    const settings = db.saveSettings(merged);
+    res.json({ success: true, message: "Settings saved", settings });
+  } catch (e) {
+    console.error("[ADMIN] Save settings error:", e);
+    res.status(500).json({ error: "Failed to save settings" });
+  }
 });
 
 // ============ ADMIN: QR IMAGE UPLOAD ============
@@ -379,21 +390,28 @@ app.post("/api/admin/upload-qr", (req, res, next) => {
   if (key !== ADMIN_KEY) return res.status(403).json({ error: "Unauthorized" });
   next();
 }, qrUpload.single("qrImage"), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-  const settings = db.getSettings();
-  // Delete old QR file if exists
-  if (settings.qrImageUrl && (settings.qrImageUrl.startsWith("/uploads/") || settings.qrImageUrl.startsWith("/api/uploads/"))) {
-    const filename = path.basename(settings.qrImageUrl);
-    const oldPath = path.join(UPLOADS_DIR, filename);
-    if (fs.existsSync(oldPath)) {
-      try { fs.unlinkSync(oldPath); } catch (e) {}
+    // Always read fresh settings so we preserve the existing upiId
+    const current = db.getSettings() || { upiId: "", qrImageUrl: "" };
+
+    // Delete old QR file if exists
+    if (current.qrImageUrl && (current.qrImageUrl.startsWith("/uploads/") || current.qrImageUrl.startsWith("/api/uploads/"))) {
+      const filename = path.basename(current.qrImageUrl);
+      const oldPath = path.join(UPLOADS_DIR, filename);
+      if (fs.existsSync(oldPath)) {
+        try { fs.unlinkSync(oldPath); } catch (e) {}
+      }
     }
-  }
 
-  const qrImageUrl = `/api/uploads/${req.file.filename}`;
-  db.saveSettings({ upiId: settings.upiId, qrImageUrl });
-  res.json({ success: true, qrImageUrl, message: "QR image uploaded" });
+    const qrImageUrl = `/api/uploads/${req.file.filename}`;
+    const saved = db.saveSettings({ upiId: current.upiId || "", qrImageUrl });
+    res.json({ success: true, qrImageUrl: saved.qrImageUrl, settings: saved, message: "QR image uploaded" });
+  } catch (e) {
+    console.error("[ADMIN] QR upload error:", e);
+    res.status(500).json({ error: "Upload failed" });
+  }
 });
 
 // ============ ADMIN: DEPOSIT REQUESTS ============

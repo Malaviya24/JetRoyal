@@ -231,8 +231,10 @@ module.exports = {
   },
 
   saveSettings(settings) {
-    run("UPDATE settings SET upi_id = ?, qr_image_url = ? WHERE id = 1", [settings.upiId || "", settings.qrImageUrl || ""]);
-    return { upiId: settings.upiId, qrImageUrl: settings.qrImageUrl };
+    const upiId = (settings && typeof settings.upiId === "string") ? settings.upiId : "";
+    const qrImageUrl = (settings && typeof settings.qrImageUrl === "string") ? settings.qrImageUrl : "";
+    run("UPDATE settings SET upi_id = ?, qr_image_url = ? WHERE id = 1", [upiId, qrImageUrl]);
+    return { upiId, qrImageUrl };
   },
 
   // Game History
