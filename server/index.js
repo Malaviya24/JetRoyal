@@ -369,6 +369,66 @@ app.get("/api/admin/stats", adminMiddleware, (req, res) => {
   res.json({ success: true, stats });
 });
 
+// ============ ADMIN: USER DETAILS ============
+app.get("/api/admin/user-details/:userId", adminMiddleware, (req, res) => {
+  const userId = parseInt(req.params.userId);
+  const user = db.findUserById(userId);
+  if (!user) return res.status(404).json({ error: "User not found" });
+
+  const bank = db.getBankDetails(userId);
+  const bets = db.getGameHistoryByUser(user.username);
+  const transactions = db.getTransactions(userId);
+
+  res.json({
+    success: true,
+    user: { id: user.id, username: user.username, name: user.name, phone: user.phone, balance: user.balance, img: user.img, createdAt: user.created_at },
+    bank: bank || null,
+    bets,
+    transactions
+  });
+});
+
+// ============ ADMIN: DELETE USER ============
+app.post("/api/admin/delete-user", adminMiddleware, (req, res) => {
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: "Missing userId" });
+
+  // Disconnect socket if online
+  for (const [socketId, player] of players) {
+    if (player.userId === userId) {
+      io.to(socketId).emit("error", { message: "Your account has been deleted", index: "f" });
+      players.delete(socketId);
+    }
+  }
+
+  db.deleteUser(userId);
+  res.json({ success: true, message: "User deleted" });
+});
+
+// ============ ADMIN: REMOVE MONEY ============
+app.post("/api/admin/remove-money", adminMiddleware, (req, res) => {
+  const { userId, amount } = req.body;
+  if (!userId || !amount || amount <= 0) return res.status(400).json({ error: "Invalid data" });
+
+  const user = db.findUserById(userId);
+  if (!user) return res.status(404).json({ error: "User not found" });
+
+  const deductAmount = Math.min(amount, user.balance);
+  db.deductBalance(userId, deductAmount);
+
+  // Update live socket
+  for (const [socketId, player] of players) {
+    if (player.userId === userId) {
+      player.balance = Math.max(0, player.balance - amount);
+      io.to(socketId).emit("myInfo", { balance: player.balance, userType: true, userName: player.userName, img: player.img });
+    }
+  }
+
+  db.addTransaction(userId, "admin_debit", deductAmount, "approved");
+  const updatedUser = db.findUserById(userId);
+  res.json({ success: true, message: `Removed ₹${deductAmount}`, balance: updatedUser.balance });
+});
+
 // ============ CRASH POINT ============
 function generateCrashPoint() {
   // If admin set a manual crash point, use it (one-time)

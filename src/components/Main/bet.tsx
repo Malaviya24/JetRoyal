@@ -293,6 +293,8 @@ const Bet = ({ index, add, setAdd }: BetProps) => {
 								setShowCashoutAnim(true);
 								setTimeout(() => setShowCashoutAnim(false), 2500);
 								soundManager.playCashout();
+								// Immediately update local bet state so button disappears
+								updateUserBetState({ [`${index}betted`]: false } as any);
 								callCashOut(currentTarget, index);
 							}}>
 								<span>

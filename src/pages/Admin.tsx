@@ -39,7 +39,7 @@ interface Stats {
   totalWithdrawals: number;
 }
 
-type TabType = "dashboard" | "crash" | "results" | "users" | "deposits" | "withdrawals" | "settings";
+type TabType = "dashboard" | "crash" | "results" | "users" | "deposits" | "withdrawals" | "settings" | "userdetails";
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -56,6 +56,10 @@ export default function Admin() {
   const [adminPass, setAdminPass] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<number | null>(null);
+  const [userDetails, setUserDetails] = useState<any>(null);
+  const [removeMoneyAmount, setRemoveMoneyAmount] = useState("");
+  const [removeMoneyUser, setRemoveMoneyUser] = useState("");
 
   const ADMIN_PASSWORD = "admin123";
 
@@ -119,9 +123,63 @@ export default function Admin() {
     } catch (e) {}
   }, []);
 
+  const fetchUserDetails = async (userId: number) => {
+    try {
+      const res = await fetch(`${config.api}/admin/user-details/${userId}`, {
+        headers: { "x-admin-key": ADMIN_PASSWORD },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUserDetails(data);
+        setSelectedUser(userId);
+        setTab("userdetails");
+      }
+    } catch (e) {}
+  };
+
+  const handleDeleteUser = async (userId: number) => {
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
+    try {
+      const res = await fetch(`${config.api}/admin/delete-user`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-key": ADMIN_PASSWORD },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("User deleted");
+        setTab("users");
+        fetchUsers();
+      } else {
+        toast.error(data.error);
+      }
+    } catch (e) { toast.error("Server error"); }
+  };
+
+  const handleRemoveMoney = async (userId: number) => {
+    const amount = parseFloat(removeMoneyAmount);
+    if (!amount || amount <= 0) { toast.error("Enter valid amount"); return; }
+    try {
+      const res = await fetch(`${config.api}/admin/remove-money`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-key": ADMIN_PASSWORD },
+        body: JSON.stringify({ userId, amount }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Removed ₹${amount}`);
+        setRemoveMoneyAmount("");
+        setRemoveMoneyUser("");
+        fetchUserDetails(userId);
+        fetchUsers();
+      } else {
+        toast.error(data.error);
+      }
+    } catch (e) { toast.error("Server error"); }
+  };
+
   useEffect(() => {
-    if (authenticated) {
-      fetchStats();
+    if (authenticated) {      fetchStats();
       fetchUsers();
       fetchResults();
       fetchDeposits();
@@ -251,6 +309,7 @@ export default function Admin() {
     { key: "deposits", icon: "💰", label: "Deposit Requests" },
     { key: "withdrawals", icon: "🏧", label: "Withdrawal Requests" },
     { key: "settings", icon: "⚙️", label: "Settings" },
+    { key: "userdetails", icon: "👤", label: selectedUser ? `User #${selectedUser}` : "User Details" },
   ];
 
   if (!authenticated) {
@@ -325,7 +384,7 @@ export default function Admin() {
       {/* Main Content */}
       <main className="admin-main">
         <div className="admin-topbar">
-          <h1>{menuItems.find((m) => m.key === tab)?.icon} {menuItems.find((m) => m.key === tab)?.label}</h1>
+          <h1>{menuItems.find((m) => m.key === tab)?.icon} {tab === "userdetails" && userDetails ? `User: ${userDetails.user.username}` : menuItems.find((m) => m.key === tab)?.label}</h1>
         </div>
 
         <div className="admin-content">
@@ -422,7 +481,7 @@ export default function Admin() {
                       <th>Name</th>
                       <th>Phone</th>
                       <th>Balance</th>
-                      <th>Action</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -437,20 +496,23 @@ export default function Admin() {
                           <td>{user.phone}</td>
                           <td className="balance">₹{user.balance.toFixed(2)}</td>
                           <td>
-                            {addMoneyUser === String(user.id) ? (
-                              <div className="add-money-inline">
-                                <input
-                                  type="number"
-                                  placeholder="Amount"
-                                  value={addMoneyAmount}
-                                  onChange={(e) => setAddMoneyAmount(e.target.value)}
-                                />
-                                <button className="confirm-btn" onClick={() => handleAddMoney(user.id)}>✓</button>
-                                <button className="cancel-btn" onClick={() => setAddMoneyUser("")}>✗</button>
-                              </div>
-                            ) : (
-                              <button className="add-btn" onClick={() => setAddMoneyUser(String(user.id))}>+ Add Money</button>
-                            )}
+                            <div className="action-btns">
+                              <button className="view-btn" onClick={() => fetchUserDetails(user.id)}>👁 View</button>
+                              {addMoneyUser === String(user.id) ? (
+                                <div className="add-money-inline">
+                                  <input
+                                    type="number"
+                                    placeholder="Amount"
+                                    value={addMoneyAmount}
+                                    onChange={(e) => setAddMoneyAmount(e.target.value)}
+                                  />
+                                  <button className="confirm-btn" onClick={() => handleAddMoney(user.id)}>✓</button>
+                                  <button className="cancel-btn" onClick={() => setAddMoneyUser("")}>✗</button>
+                                </div>
+                              ) : (
+                                <button className="add-btn" onClick={() => setAddMoneyUser(String(user.id))}>+ Add</button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -588,6 +650,153 @@ export default function Admin() {
                 </div>
                 <button className="save-btn" onClick={handleSaveSettings}>💾 Save Settings</button>
               </div>
+            </div>
+          )}
+
+          {/* User Details */}
+          {tab === "userdetails" && (
+            <div className="user-details-section">
+              {!userDetails ? (
+                <p className="no-data">No user selected. Click "View" on a user from the Users tab.</p>
+              ) : (
+                <>
+                  <div className="section-header">
+                    <h2>👤 User #{userDetails.user.id} — {userDetails.user.username}</h2>
+                    <div className="action-btns">
+                      <button className="refresh-btn" onClick={() => fetchUserDetails(userDetails.user.id)}>🔄 Refresh</button>
+                      <button className="reject-btn" onClick={() => handleDeleteUser(userDetails.user.id)}>🗑 Delete Account</button>
+                    </div>
+                  </div>
+
+                  {/* User Info */}
+                  <div className="detail-card">
+                    <h3>User Info</h3>
+                    <div className="detail-grid">
+                      <div className="detail-row"><span className="detail-label">ID</span><span className="detail-val">{userDetails.user.id}</span></div>
+                      <div className="detail-row"><span className="detail-label">Username</span><span className="detail-val">{userDetails.user.username}</span></div>
+                      <div className="detail-row"><span className="detail-label">Name</span><span className="detail-val">{userDetails.user.name}</span></div>
+                      <div className="detail-row"><span className="detail-label">Phone</span><span className="detail-val">{userDetails.user.phone}</span></div>
+                      <div className="detail-row"><span className="detail-label">Balance</span><span className="detail-val green">₹{Number(userDetails.user.balance).toFixed(2)}</span></div>
+                      <div className="detail-row"><span className="detail-label">Joined</span><span className="detail-val">{new Date(userDetails.user.createdAt).toLocaleDateString()}</span></div>
+                    </div>
+                  </div>
+
+                  {/* Money Actions */}
+                  <div className="detail-card">
+                    <h3>Money Actions</h3>
+                    <div className="money-actions-row">
+                      <div className="money-action-group">
+                        <label>Add Money</label>
+                        <div className="add-money-inline">
+                          {addMoneyUser === String(userDetails.user.id) ? (
+                            <>
+                              <input type="number" placeholder="Amount" value={addMoneyAmount} onChange={(e) => setAddMoneyAmount(e.target.value)} />
+                              <button className="confirm-btn" onClick={() => { handleAddMoney(userDetails.user.id); setAddMoneyUser(""); }}>✓ Add</button>
+                              <button className="cancel-btn" onClick={() => setAddMoneyUser("")}>✗</button>
+                            </>
+                          ) : (
+                            <button className="add-btn" onClick={() => setAddMoneyUser(String(userDetails.user.id))}>+ Add Money</button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="money-action-group">
+                        <label>Remove Money</label>
+                        <div className="add-money-inline">
+                          {removeMoneyUser === String(userDetails.user.id) ? (
+                            <>
+                              <input type="number" placeholder="Amount" value={removeMoneyAmount} onChange={(e) => setRemoveMoneyAmount(e.target.value)} />
+                              <button className="confirm-btn" style={{ background: "#e53e3e" }} onClick={() => handleRemoveMoney(userDetails.user.id)}>✓ Remove</button>
+                              <button className="cancel-btn" onClick={() => setRemoveMoneyUser("")}>✗</button>
+                            </>
+                          ) : (
+                            <button className="reject-btn" onClick={() => setRemoveMoneyUser(String(userDetails.user.id))}>− Remove Money</button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bank Details */}
+                  <div className="detail-card">
+                    <h3>Bank Details</h3>
+                    {!userDetails.bank ? (
+                      <p className="no-data">No bank details added</p>
+                    ) : (
+                      <div className="detail-grid">
+                        <div className="detail-row"><span className="detail-label">Account Holder</span><span className="detail-val">{userDetails.bank.account_holder}</span></div>
+                        <div className="detail-row"><span className="detail-label">Account Number</span><span className="detail-val">{userDetails.bank.account_number}</span></div>
+                        <div className="detail-row"><span className="detail-label">IFSC Code</span><span className="detail-val">{userDetails.bank.ifsc_code}</span></div>
+                        <div className="detail-row"><span className="detail-label">Bank Name</span><span className="detail-val">{userDetails.bank.bank_name}</span></div>
+                        <div className="detail-row"><span className="detail-label">UPI ID</span><span className="detail-val">{userDetails.bank.upi_id || "—"}</span></div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bet History */}
+                  <div className="detail-card">
+                    <h3>Last 20 Bets</h3>
+                    {!userDetails.bets || userDetails.bets.length === 0 ? (
+                      <p className="no-data">No bets yet</p>
+                    ) : (
+                      <div className="admin-table-wrap">
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              <th>Date</th>
+                              <th>Bet Amount</th>
+                              <th>Cashout At</th>
+                              <th>Cashouted</th>
+                              <th>Profit</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {userDetails.bets.map((bet: any, i: number) => (
+                              <tr key={i}>
+                                <td>{new Date(bet.date).toLocaleDateString()}</td>
+                                <td>₹{Number(bet.betAmount).toFixed(2)}</td>
+                                <td>{Number(bet.cashoutAt).toFixed(2)}x</td>
+                                <td>{bet.cashouted ? <span className="status-badge approved">Yes</span> : <span className="status-badge rejected">No</span>}</td>
+                                <td className={Number(bet.profit) >= 0 ? "green" : "red"}>₹{Number(bet.profit).toFixed(2)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Transaction History */}
+                  <div className="detail-card">
+                    <h3>Transaction History</h3>
+                    {!userDetails.transactions || userDetails.transactions.length === 0 ? (
+                      <p className="no-data">No transactions yet</p>
+                    ) : (
+                      <div className="admin-table-wrap">
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              <th>Date</th>
+                              <th>Type</th>
+                              <th>Amount</th>
+                              <th>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {userDetails.transactions.map((txn: any, i: number) => (
+                              <tr key={i}>
+                                <td>{new Date(txn.created_at).toLocaleDateString()}</td>
+                                <td>{txn.type}</td>
+                                <td>₹{Number(txn.amount).toFixed(2)}</td>
+                                <td><span className={`status-badge ${txn.status}`}>{txn.status}</span></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

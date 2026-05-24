@@ -18,10 +18,13 @@ export default function WebGLStarter() {
 	const containerRef = React.useRef<HTMLDivElement>(null);
 	const prevGameState = React.useRef("");
 
-	// Initialize sound on first user interaction
+	// Initialize sound and try to start bg music immediately (re-init on every mount/refresh)
 	React.useEffect(() => {
+		soundManager.init();
+		// Try to start bg music immediately (may be blocked until user interaction)
+		soundManager.playBackground();
+
 		const startAudio = () => {
-			soundManager.init();
 			soundManager.playBackground();
 			document.removeEventListener("click", startAudio);
 			document.removeEventListener("touchstart", startAudio);

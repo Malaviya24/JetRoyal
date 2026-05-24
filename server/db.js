@@ -241,9 +241,16 @@ module.exports = {
     return getAll("SELECT username as name, SUM(profit) as totalWin FROM game_history WHERE cashouted = 1 AND profit > 0 GROUP BY username ORDER BY totalWin DESC LIMIT 10");
   },
 
+  // Delete User
+  deleteUser(id) {
+    run("DELETE FROM bank_details WHERE user_id = ?", [id]);
+    run("DELETE FROM transactions WHERE user_id = ?", [id]);
+    run("DELETE FROM game_history WHERE user_id = ?", [id]);
+    run("DELETE FROM users WHERE id = ?", [id]);
+  },
+
   // Stats
-  getStats() {
-    const totalUsers = getOne("SELECT COUNT(*) as cnt FROM users");
+  getStats() {    const totalUsers = getOne("SELECT COUNT(*) as cnt FROM users");
     const totalDeposits = getOne("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE type = 'deposit' AND status = 'approved'");
     const totalWithdrawals = getOne("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE type = 'withdrawal' AND status = 'approved'");
     return {
