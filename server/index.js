@@ -4,11 +4,41 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const multer = require("multer");
+const fs = require("fs");
+const path = require("path");
 const db = require("./db");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Create uploads directory if not exists
+const UPLOADS_DIR = path.join(__dirname, "uploads");
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+// Serve uploaded files statically (both /uploads and /api/uploads work)
+app.use("/uploads", express.static(UPLOADS_DIR));
+app.use("/api/uploads", express.static(UPLOADS_DIR));
+
+// Multer config for QR image upload
+const qrStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `qr-${Date.now()}${ext}`);
+  },
+});
+const qrUpload = multer({
+  storage: qrStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  fileFilter: (req, file, cb) => {
+    const allowed = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(ext)) cb(null, true);
+    else cb(new Error("Only image files are allowed"));
+  },
+});
 
 const JWT_SECRET = "aviator_crash_secret_key_2024";
 
@@ -296,6 +326,30 @@ app.post("/api/admin/settings", adminMiddleware, (req, res) => {
   const { upiId, qrImageUrl } = req.body;
   const settings = db.saveSettings({ upiId: upiId || "", qrImageUrl: qrImageUrl || "" });
   res.json({ success: true, message: "Settings saved", settings });
+});
+
+// ============ ADMIN: QR IMAGE UPLOAD ============
+app.post("/api/admin/upload-qr", (req, res, next) => {
+  // Manual admin auth check (multer middleware needs to run first for files)
+  const key = req.headers["x-admin-key"];
+  if (key !== ADMIN_KEY) return res.status(403).json({ error: "Unauthorized" });
+  next();
+}, qrUpload.single("qrImage"), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+  const settings = db.getSettings();
+  // Delete old QR file if exists
+  if (settings.qrImageUrl && (settings.qrImageUrl.startsWith("/uploads/") || settings.qrImageUrl.startsWith("/api/uploads/"))) {
+    const filename = path.basename(settings.qrImageUrl);
+    const oldPath = path.join(UPLOADS_DIR, filename);
+    if (fs.existsSync(oldPath)) {
+      try { fs.unlinkSync(oldPath); } catch (e) {}
+    }
+  }
+
+  const qrImageUrl = `/api/uploads/${req.file.filename}`;
+  db.saveSettings({ upiId: settings.upiId, qrImageUrl });
+  res.json({ success: true, qrImageUrl, message: "QR image uploaded" });
 });
 
 // ============ ADMIN: DEPOSIT REQUESTS ============

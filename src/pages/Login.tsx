@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { config } from "../config";
-import logo from "../assets/images/logo.svg";
+import logo from "../assets/images/jetroyal-logo.svg";
 import "./auth.scss";
 
 export default function Login() {

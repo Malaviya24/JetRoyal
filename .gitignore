@@ -4,3 +4,4 @@ server/aviator.sqlite
 server/data.json
 build/
 .env
+server/uploads/

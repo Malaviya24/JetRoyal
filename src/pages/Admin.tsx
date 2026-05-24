@@ -313,6 +313,31 @@ export default function Admin() {
     }
   };
 
+  const handleQrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("qrImage", file);
+
+    try {
+      const res = await fetch(`${config.api}/admin/upload-qr`, {
+        method: "POST",
+        headers: { "x-admin-key": ADMIN_PASSWORD },
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSettings({ ...settings, qrImageUrl: data.qrImageUrl });
+        toast.success("QR image uploaded!");
+      } else {
+        toast.error(data.error || "Upload failed");
+      }
+    } catch (err) {
+      toast.error("Upload failed");
+    }
+  };
+
   const menuItems: { key: TabType; icon: string; label: string }[] = [
     { key: "dashboard", icon: "📊", label: "Dashboard" },
     { key: "crash", icon: "🎯", label: "Set Crash Point" },
@@ -648,18 +673,31 @@ export default function Admin() {
                   />
                 </div>
                 <div className="setting-group">
-                  <label>QR Image URL</label>
-                  <input
-                    type="text"
-                    placeholder="https://example.com/qr.png"
-                    value={settings.qrImageUrl}
-                    onChange={(e) => setSettings({ ...settings, qrImageUrl: e.target.value })}
-                  />
-                  {settings.qrImageUrl && (
-                    <div className="qr-preview">
-                      <img src={settings.qrImageUrl} alt="QR Preview" />
-                    </div>
-                  )}
+                  <label>QR Code Image</label>
+                  <div className="qr-upload-wrapper">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleQrUpload}
+                      id="qr-upload-input"
+                      style={{ display: "none" }}
+                    />
+                    <label htmlFor="qr-upload-input" className="qr-upload-btn">
+                      📷 Upload QR Image from Gallery
+                    </label>
+                    {settings.qrImageUrl && (
+                      <div className="qr-preview">
+                        <img src={settings.qrImageUrl} alt="QR Preview" />
+                        <button
+                          type="button"
+                          className="qr-remove-btn"
+                          onClick={() => setSettings({ ...settings, qrImageUrl: "" })}
+                        >
+                          ✗ Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <button className="save-btn" onClick={handleSaveSettings}>💾 Save Settings</button>
               </div>

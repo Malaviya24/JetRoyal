@@ -777,3 +777,42 @@
   .green { color: #28a909; }
   .red { color: #e63946; }
 }
+
+// QR Upload styles
+.qr-upload-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.qr-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #e69308, #ff6b00);
+  color: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  transition: opacity 0.2s;
+  width: 100%;
+  max-width: 300px;
+
+  &:hover { opacity: 0.85; }
+}
+
+.qr-remove-btn {
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: #e63946;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover { opacity: 0.85; }
+}
