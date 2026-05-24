@@ -39,7 +39,7 @@ interface Stats {
   totalWithdrawals: number;
 }
 
-type TabType = "dashboard" | "crash" | "results" | "users" | "deposits" | "withdrawals" | "settings" | "userdetails" | "allbets";
+type TabType = "dashboard" | "crash" | "results" | "users" | "deposits" | "withdrawals" | "settings" | "userdetails" | "allbets" | "livebets";
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -50,6 +50,8 @@ export default function Admin() {
   const [deposits, setDeposits] = useState<Transaction[]>([]);
   const [withdrawals, setWithdrawals] = useState<Transaction[]>([]);
   const [allBets, setAllBets] = useState<any[]>([]);
+  const [crashQueue, setCrashQueue] = useState<number[]>([]);
+  const [liveBets, setLiveBets] = useState<any>(null);
   const [settings, setSettings] = useState<Settings>({ upiId: "", qrImageUrl: "" });
   const [stats, setStats] = useState<Stats>({ totalUsers: 0, totalDeposits: 0, totalWithdrawals: 0 });
   const [addMoneyUser, setAddMoneyUser] = useState("");
@@ -124,6 +126,48 @@ export default function Admin() {
     } catch (e) {}
   }, []);
 
+  const fetchCrashQueue = useCallback(async () => {
+    try {
+      const res = await fetch(`${config.api}/admin/crash-queue`, {
+        headers: { "x-admin-key": ADMIN_PASSWORD },
+      });
+      const data = await res.json();
+      if (data.success) setCrashQueue(data.queue);
+    } catch (e) {}
+  }, []);
+
+  const fetchLiveBets = useCallback(async () => {
+    try {
+      const res = await fetch(`${config.api}/admin/live-bets`, {
+        headers: { "x-admin-key": ADMIN_PASSWORD },
+      });
+      const data = await res.json();
+      if (data.success) setLiveBets(data);
+    } catch (e) {}
+  }, []);
+
+  const removeFromQueue = async (idx: number) => {
+    try {
+      await fetch(`${config.api}/admin/crash-queue/${idx}`, {
+        method: "DELETE",
+        headers: { "x-admin-key": ADMIN_PASSWORD },
+      });
+      fetchCrashQueue();
+    } catch (e) {}
+  };
+
+  const clearQueue = async () => {
+    if (!window.confirm("Clear all queued crash points?")) return;
+    try {
+      await fetch(`${config.api}/admin/clear-crash-queue`, {
+        method: "POST",
+        headers: { "x-admin-key": ADMIN_PASSWORD },
+      });
+      toast.success("Queue cleared");
+      fetchCrashQueue();
+    } catch (e) {}
+  };
+
   const fetchStats = useCallback(async () => {
     try {
       const res = await fetch(`${config.api}/admin/stats`, {
@@ -197,13 +241,17 @@ export default function Admin() {
       fetchWithdrawals();
       fetchSettings();
       fetchAllBets();
+      fetchCrashQueue();
+      fetchLiveBets();
       const interval = setInterval(() => {
         fetchResults();
         fetchStats();
-      }, 10000);
+        fetchCrashQueue();
+        if (tab === "livebets") fetchLiveBets();
+      }, 3000);
       return () => clearInterval(interval);
     }
-  }, [authenticated, fetchUsers, fetchResults, fetchDeposits, fetchWithdrawals, fetchSettings, fetchStats, fetchAllBets]);
+  }, [authenticated, tab, fetchUsers, fetchResults, fetchDeposits, fetchWithdrawals, fetchSettings, fetchStats, fetchAllBets, fetchCrashQueue, fetchLiveBets]);
 
   const handleSetCrash = async () => {
     const value = parseFloat(crashPoint);
@@ -219,8 +267,9 @@ export default function Admin() {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(`Next crash set to ${value}x`);
+        toast.success(data.message);
         setCrashPoint("");
+        fetchCrashQueue();
       } else {
         toast.error(data.error || "Failed");
       }
@@ -340,6 +389,7 @@ export default function Admin() {
 
   const menuItems: { key: TabType; icon: string; label: string }[] = [
     { key: "dashboard", icon: "📊", label: "Dashboard" },
+    { key: "livebets" as TabType, icon: "🔴", label: "Live Bets" },
     { key: "crash", icon: "🎯", label: "Set Crash Point" },
     { key: "results", icon: "📈", label: "Game Results" },
     { key: "users", icon: "👥", label: "All Users" },
@@ -458,8 +508,8 @@ export default function Admin() {
           {/* Set Crash */}
           {tab === "crash" && (
             <div className="crash-control">
-              <h2>Set Next Crash Point</h2>
-              <p className="desc">The plane will fly away at this multiplier in the next round</p>
+              <h2>Crash Point Queue</h2>
+              <p className="desc">Queue crash points one by one. Each round will use the next one in queue. After queue is empty, random crashes resume.</p>
               <div className="crash-input-row">
                 <input
                   type="number"
@@ -470,7 +520,7 @@ export default function Admin() {
                   step="0.01"
                 />
                 <span className="x-label">x</span>
-                <button onClick={handleSetCrash}>SET CRASH</button>
+                <button onClick={handleSetCrash}>+ ADD TO QUEUE</button>
               </div>
               <div className="quick-crash">
                 {[1.1, 1.5, 2.0, 3.0, 5.0, 10.0, 20.0, 50.0].map((v) => (
@@ -479,6 +529,166 @@ export default function Admin() {
                   </button>
                 ))}
               </div>
+
+              {/* Queue display */}
+              <div style={{ marginTop: "24px" }}>
+                <div className="section-header">
+                  <h2>Pending Queue ({crashQueue.length})</h2>
+                  {crashQueue.length > 0 && (
+                    <button className="reject-btn" onClick={clearQueue}>🗑 Clear Queue</button>
+                  )}
+                </div>
+                {crashQueue.length === 0 ? (
+                  <p className="no-data">No queued crashes. Random crashes will be used.</p>
+                ) : (
+                  <div className="queue-list">
+                    {crashQueue.map((cp, i) => (
+                      <div key={i} className="queue-item">
+                        <span className="queue-position">#{i + 1}</span>
+                        <span className={`queue-value ${cp < 2 ? "red" : cp >= 5 ? "green" : "blue"}`}>{cp.toFixed(2)}x</span>
+                        <button className="queue-remove" onClick={() => removeFromQueue(i)}>✗</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Live Bets */}
+          {tab === "livebets" && (
+            <div className="livebets-section">
+              <div className="section-header">
+                <h2>🔴 Live Round</h2>
+                <button className="refresh-btn" onClick={fetchLiveBets}>🔄 Refresh</button>
+              </div>
+              {!liveBets ? (
+                <p className="no-data">Loading...</p>
+              ) : (
+                <>
+                  {/* Live Status Cards */}
+                  <div className="stats-grid">
+                    <div className="stat-card">
+                      <div className="stat-icon">{liveBets.gameState === "PLAYING" ? "✈️" : liveBets.gameState === "BET" ? "⏳" : "💥"}</div>
+                      <div className="stat-info">
+                        <span className="stat-value">{liveBets.gameState}</span>
+                        <span className="stat-label">Game State</span>
+                      </div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-icon">🎯</div>
+                      <div className="stat-info">
+                        <span className="stat-value">{liveBets.crashPoint?.toFixed(2)}x</span>
+                        <span className="stat-label">This Round Crash</span>
+                      </div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-icon">📋</div>
+                      <div className="stat-info">
+                        <span className="stat-value">{liveBets.queueLength}</span>
+                        <span className="stat-label">Queue Pending</span>
+                      </div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-icon">🎲</div>
+                      <div className="stat-info">
+                        <span className="stat-value">{liveBets.totalBets}</span>
+                        <span className="stat-label">Total Bets</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick set crash from live view */}
+                  <div className="detail-card" style={{ marginTop: "16px" }}>
+                    <h3>Quick Set Next Crash</h3>
+                    <div className="crash-input-row">
+                      <input
+                        type="number"
+                        placeholder="e.g. 1.5"
+                        value={crashPoint}
+                        onChange={(e) => setCrashPoint(e.target.value)}
+                        min="1.01"
+                        step="0.01"
+                      />
+                      <span className="x-label">x</span>
+                      <button onClick={handleSetCrash}>+ QUEUE</button>
+                    </div>
+                    <div className="quick-crash" style={{ marginTop: "10px" }}>
+                      {[1.05, 1.2, 1.5, 2, 3, 5, 10, 20].map((v) => (
+                        <button key={v} onClick={() => { setCrashPoint(String(v)); handleSetCrash(); }}>{v}x</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Real Players */}
+                  <div className="detail-card">
+                    <h3>👤 Real Players ({liveBets.realPlayers?.length || 0})</h3>
+                    {!liveBets.realPlayers || liveBets.realPlayers.length === 0 ? (
+                      <p className="no-data">No real player bets this round</p>
+                    ) : (
+                      <div className="admin-table-wrap">
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              <th>Player</th>
+                              <th>Bet (₹)</th>
+                              <th>Target</th>
+                              <th>Cashed Out</th>
+                              <th>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {liveBets.realPlayers.map((p: any, i: number) => (
+                              <tr key={i}>
+                                <td>{p.name}</td>
+                                <td>₹{Number(p.betAmount).toFixed(2)}</td>
+                                <td>{Number(p.target).toFixed(2)}x</td>
+                                <td>{p.cashouted ? `${Number(p.cashOut).toFixed(2)}x` : "—"}</td>
+                                <td>
+                                  {p.cashouted
+                                    ? <span className="status-badge approved">CASHED OUT</span>
+                                    : <span className="status-badge pending">ACTIVE</span>}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bots */}
+                  <div className="detail-card">
+                    <h3>🤖 Bots ({liveBets.bots?.length || 0})</h3>
+                    {!liveBets.bots || liveBets.bots.length === 0 ? (
+                      <p className="no-data">No bots</p>
+                    ) : (
+                      <div className="admin-table-wrap">
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              <th>Bot</th>
+                              <th>Bet (₹)</th>
+                              <th>Target</th>
+                              <th>Cashed Out</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {liveBets.bots.map((p: any, i: number) => (
+                              <tr key={i}>
+                                <td>{p.name}</td>
+                                <td>₹{Number(p.betAmount).toFixed(2)}</td>
+                                <td>{Number(p.target).toFixed(2)}x</td>
+                                <td>{p.cashouted ? `${Number(p.cashOut).toFixed(2)}x` : "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
 

@@ -816,3 +816,58 @@
 
   &:hover { opacity: 0.85; }
 }
+
+// Crash Queue
+.queue-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.queue-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #101112;
+  border: 1px solid #2c2d31;
+  border-radius: 8px;
+  padding: 8px 12px;
+  min-width: 110px;
+
+  .queue-position {
+    font-size: 11px;
+    color: #5e6269;
+    font-weight: 600;
+  }
+
+  .queue-value {
+    font-size: 16px;
+    font-weight: 700;
+    flex: 1;
+
+    &.red { color: #e63946; }
+    &.blue { color: #34b4ff; }
+    &.green { color: #28a909; }
+  }
+
+  .queue-remove {
+    background: none;
+    border: none;
+    color: #5e6269;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 4px;
+
+    &:hover {
+      color: #e63946;
+    }
+  }
+}
+
+// Live Bets section
+.livebets-section {
+  .stats-grid {
+    margin-bottom: 16px;
+  }
+}

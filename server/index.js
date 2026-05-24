@@ -265,15 +265,48 @@ function adminMiddleware(req, res, next) {
   next();
 }
 
-// Admin: set next crash point
-let manualCrashPoint = null;
+// Admin: set next crash point - now supports queue
+let manualCrashQueue = [];
 
 app.post("/api/admin/set-crash", adminMiddleware, (req, res) => {
   const { crashPoint: cp } = req.body;
   if (!cp || cp < 1.01) return res.status(400).json({ error: "Crash point must be at least 1.01" });
-  manualCrashPoint = cp;
-  console.log(`[ADMIN] Next crash set to ${cp}x`);
-  res.json({ success: true, message: `Next crash point set to ${cp}x` });
+  manualCrashQueue.push(cp);
+  console.log(`[ADMIN] Crash queue: ${manualCrashQueue.join(", ")}`);
+  res.json({ success: true, message: `Added ${cp}x to crash queue (${manualCrashQueue.length} pending)`, queue: manualCrashQueue });
+});
+
+app.get("/api/admin/crash-queue", adminMiddleware, (req, res) => {
+  res.json({ success: true, queue: manualCrashQueue });
+});
+
+app.delete("/api/admin/crash-queue/:idx", adminMiddleware, (req, res) => {
+  const idx = parseInt(req.params.idx);
+  if (idx >= 0 && idx < manualCrashQueue.length) {
+    manualCrashQueue.splice(idx, 1);
+  }
+  res.json({ success: true, queue: manualCrashQueue });
+});
+
+app.post("/api/admin/clear-crash-queue", adminMiddleware, (req, res) => {
+  manualCrashQueue = [];
+  res.json({ success: true, message: "Queue cleared" });
+});
+
+// Live bets — current round
+app.get("/api/admin/live-bets", adminMiddleware, (req, res) => {
+  const realPlayers = bettedUsers.filter((u) => !u.bot);
+  const bots = bettedUsers.filter((u) => u.bot);
+  res.json({
+    success: true,
+    gameState,
+    crashPoint,
+    queueLength: manualCrashQueue.length,
+    nextCrash: manualCrashQueue.length > 0 ? manualCrashQueue[0] : null,
+    realPlayers,
+    bots,
+    totalBets: bettedUsers.length,
+  });
 });
 
 app.get("/api/admin/results", adminMiddleware, (req, res) => {
@@ -499,11 +532,10 @@ app.post("/api/admin/remove-money", adminMiddleware, (req, res) => {
 
 // ============ CRASH POINT ============
 function generateCrashPoint() {
-  // If admin set a manual crash point, use it (one-time)
-  if (manualCrashPoint !== null) {
-    const cp = manualCrashPoint;
-    manualCrashPoint = null;
-    console.log(`[ADMIN] Using manual crash point: ${cp}x`);
+  // If admin queued crash points, use them in order (one per round)
+  if (manualCrashQueue.length > 0) {
+    const cp = manualCrashQueue.shift();
+    console.log(`[ADMIN] Using queued crash point: ${cp}x (${manualCrashQueue.length} remaining)`);
     return cp;
   }
   const e = Math.random();
