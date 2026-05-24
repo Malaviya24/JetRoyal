@@ -39,7 +39,7 @@ interface Stats {
   totalWithdrawals: number;
 }
 
-type TabType = "dashboard" | "crash" | "results" | "users" | "deposits" | "withdrawals" | "settings" | "userdetails";
+type TabType = "dashboard" | "crash" | "results" | "users" | "deposits" | "withdrawals" | "settings" | "userdetails" | "allbets";
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -49,6 +49,7 @@ export default function Admin() {
   const [results, setResults] = useState<GameResult[]>([]);
   const [deposits, setDeposits] = useState<Transaction[]>([]);
   const [withdrawals, setWithdrawals] = useState<Transaction[]>([]);
+  const [allBets, setAllBets] = useState<any[]>([]);
   const [settings, setSettings] = useState<Settings>({ upiId: "", qrImageUrl: "" });
   const [stats, setStats] = useState<Stats>({ totalUsers: 0, totalDeposits: 0, totalWithdrawals: 0 });
   const [addMoneyUser, setAddMoneyUser] = useState("");
@@ -110,6 +111,16 @@ export default function Admin() {
       });
       const data = await res.json();
       if (data.success) setSettings(data.settings);
+    } catch (e) {}
+  }, []);
+
+  const fetchAllBets = useCallback(async () => {
+    try {
+      const res = await fetch(`${config.api}/admin/all-bets`, {
+        headers: { "x-admin-key": ADMIN_PASSWORD },
+      });
+      const data = await res.json();
+      if (data.success) setAllBets(data.bets);
     } catch (e) {}
   }, []);
 
@@ -185,13 +196,14 @@ export default function Admin() {
       fetchDeposits();
       fetchWithdrawals();
       fetchSettings();
+      fetchAllBets();
       const interval = setInterval(() => {
         fetchResults();
         fetchStats();
       }, 10000);
       return () => clearInterval(interval);
     }
-  }, [authenticated, fetchUsers, fetchResults, fetchDeposits, fetchWithdrawals, fetchSettings, fetchStats]);
+  }, [authenticated, fetchUsers, fetchResults, fetchDeposits, fetchWithdrawals, fetchSettings, fetchStats, fetchAllBets]);
 
   const handleSetCrash = async () => {
     const value = parseFloat(crashPoint);
@@ -308,6 +320,7 @@ export default function Admin() {
     { key: "users", icon: "👥", label: "All Users" },
     { key: "deposits", icon: "💰", label: "Deposit Requests" },
     { key: "withdrawals", icon: "🏧", label: "Withdrawal Requests" },
+    { key: "allbets" as TabType, icon: "🎲", label: "All Bets History" },
     { key: "settings", icon: "⚙️", label: "Settings" },
     { key: "userdetails", icon: "👤", label: selectedUser ? `User #${selectedUser}` : "User Details" },
   ];
@@ -649,6 +662,54 @@ export default function Admin() {
                   )}
                 </div>
                 <button className="save-btn" onClick={handleSaveSettings}>💾 Save Settings</button>
+              </div>
+            </div>
+          )}
+
+          {/* All Bets History */}
+          {tab === "allbets" && (
+            <div className="transactions-section">
+              <div className="section-header">
+                <h2>All Bets History ({allBets.length})</h2>
+                <button className="refresh-btn" onClick={fetchAllBets}>🔄 Refresh</button>
+              </div>
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Player</th>
+                      <th>Date</th>
+                      <th>Bet (₹)</th>
+                      <th>Cashout</th>
+                      <th>Result</th>
+                      <th>Profit (₹)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allBets.length === 0 ? (
+                      <tr><td colSpan={7} className="no-data">No bets yet</td></tr>
+                    ) : (
+                      allBets.map((bet, i) => (
+                        <tr key={bet._id}>
+                          <td>{allBets.length - i}</td>
+                          <td>{bet.name}</td>
+                          <td>{new Date(bet.date).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
+                          <td>₹{Number(bet.betAmount).toFixed(2)}</td>
+                          <td>{bet.cashouted ? `${Number(bet.cashoutAt).toFixed(2)}x` : "—"}</td>
+                          <td>
+                            {bet.cashouted
+                              ? <span className="status-badge approved">WIN</span>
+                              : <span className="status-badge rejected">LOSE</span>}
+                          </td>
+                          <td className={Number(bet.profit) >= 0 ? "green" : "red"}>
+                            {Number(bet.profit) >= 0 ? "+" : ""}₹{Number(bet.profit).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}

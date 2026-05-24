@@ -92,6 +92,10 @@ export default function Header() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9b59b6" strokeWidth="2"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v4M12 14v4M16 14v4"/></svg>
             <span>Bank Details</span>
           </button>
+          <button onClick={() => { setSidebarOpen(false); navigate("/bet-history"); }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e69308" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+            <span>Bet History</span>
+          </button>
           <div className="sidebar-divider"></div>
           <button className="logout-item" onClick={() => { setSidebarOpen(false); localStorage.removeItem("token"); localStorage.removeItem("user"); navigate("/login"); }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e63946" strokeWidth="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>

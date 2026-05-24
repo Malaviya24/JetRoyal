@@ -15,6 +15,7 @@ import Account from './pages/Account';
 import ChangePassword from './pages/ChangePassword';
 import BankDetails from './pages/BankDetails';
 import Admin from './pages/Admin';
+import BetHistory from './pages/BetHistory';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
 	const token = localStorage.getItem("token");
@@ -29,7 +30,7 @@ function AuthRedirect({ children }: { children: React.ReactNode }) {
 }
 
 // Pages that overlay the game
-const OVERLAY_PAGES = ['/deposit', '/withdraw', '/account', '/account/password', '/account/bank'];
+const OVERLAY_PAGES = ['/deposit', '/withdraw', '/account', '/account/password', '/account/bank', '/bet-history'];
 
 function AppLayout() {
 	const location = useLocation();
@@ -54,6 +55,7 @@ function AppLayout() {
 								<Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
 								<Route path="/account/password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
 								<Route path="/account/bank" element={<ProtectedRoute><BankDetails /></ProtectedRoute>} />
+								<Route path="/bet-history" element={<ProtectedRoute><BetHistory /></ProtectedRoute>} />
 							</Routes>
 						</div>
 					)}

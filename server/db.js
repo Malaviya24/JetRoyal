@@ -233,8 +233,15 @@ module.exports = {
       [entry.userId, entry.username, entry.betAmount, entry.cashoutAt, entry.cashouted ? 1 : 0, entry.profit]);
   },
 
-  getGameHistoryByUser(username) {
-    return getAll("SELECT id as _id, username as name, bet_amount as betAmount, cashout_at as cashoutAt, cashouted, created_at as date FROM game_history WHERE username = ? ORDER BY created_at DESC LIMIT 20", [username]);
+  getGameHistoryByUser(username, limit = 20) {
+    const sql = limit > 0
+      ? `SELECT id as _id, username as name, bet_amount as betAmount, cashout_at as cashoutAt, cashouted, profit, created_at as date FROM game_history WHERE username = ? ORDER BY created_at DESC LIMIT ${limit}`
+      : `SELECT id as _id, username as name, bet_amount as betAmount, cashout_at as cashoutAt, cashouted, profit, created_at as date FROM game_history WHERE username = ? ORDER BY created_at DESC`;
+    return getAll(sql, [username]);
+  },
+
+  getAllGameHistory() {
+    return getAll("SELECT g.id as _id, g.username as name, g.bet_amount as betAmount, g.cashout_at as cashoutAt, g.cashouted, g.profit, g.created_at as date FROM game_history g ORDER BY g.created_at DESC");
   },
 
   getTopWinners() {

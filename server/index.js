@@ -18,7 +18,7 @@ const io = new Server(server, {
 });
 
 // ============ GAME CONFIG ============
-const BET_LIMITS = { max: 10000, min: 1 };
+const BET_LIMITS = { max: 100000, min: 1 };
 const BET_PHASE_DURATION = 5000;
 
 const BOT_NAMES = [
@@ -212,7 +212,7 @@ app.get("/api/user/transactions", authMiddleware, (req, res) => {
 // ============ GAME HISTORY / LEADERBOARD ============
 app.post("/api/my-info", (req, res) => {
   const { name } = req.body;
-  const userHistory = db.getGameHistoryByUser(name);
+  const userHistory = db.getGameHistoryByUser(name, 50);
   res.json({ status: true, data: userHistory });
 });
 
@@ -376,7 +376,7 @@ app.get("/api/admin/user-details/:userId", adminMiddleware, (req, res) => {
   if (!user) return res.status(404).json({ error: "User not found" });
 
   const bank = db.getBankDetails(userId);
-  const bets = db.getGameHistoryByUser(user.username);
+  const bets = db.getGameHistoryByUser(user.username, 0); // all bets
   const transactions = db.getTransactions(userId);
 
   res.json({
@@ -403,6 +403,20 @@ app.post("/api/admin/delete-user", adminMiddleware, (req, res) => {
 
   db.deleteUser(userId);
   res.json({ success: true, message: "User deleted" });
+});
+
+// ============ ADMIN: ALL BET HISTORY ============
+app.get("/api/admin/all-bets", adminMiddleware, (req, res) => {
+  const bets = db.getAllGameHistory();
+  res.json({ success: true, bets });
+});
+
+// ============ USER: OWN BET HISTORY ============
+app.get("/api/user/bet-history", authMiddleware, (req, res) => {
+  const user = db.findUserById(req.user.id);
+  if (!user) return res.status(404).json({ error: "User not found" });
+  const bets = db.getGameHistoryByUser(user.username, 0); // 0 = no limit
+  res.json({ success: true, bets });
 });
 
 // ============ ADMIN: REMOVE MONEY ============
