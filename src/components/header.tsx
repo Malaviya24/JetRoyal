@@ -45,8 +45,8 @@ export default function Header() {
             </div>
           ) : (
             <div className="d-flex" style={{ gap: '6px' }}>
-              <button className="auth-header-btn login-btn" onClick={() => navigate("/login")}>Login</button>
-              <button className="auth-header-btn register-btn" onClick={() => navigate("/register")}>Register</button>
+              <button className="auth-header-btn login-btn" onClick={() => window.location.href = "/login"}>Login</button>
+              <button className="auth-header-btn register-btn" onClick={() => window.location.href = "/register"}>Register</button>
             </div>
           )}
         </div>

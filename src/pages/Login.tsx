@@ -30,7 +30,8 @@ export default function Login() {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
         toast.success("Login successful!");
-        navigate("/");
+        // Full reload to ensure Unity initializes fresh
+        setTimeout(() => { window.location.href = "/"; }, 500);
       } else {
         toast.error(data.error || "Login failed");
       }

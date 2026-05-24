@@ -41,7 +41,8 @@ export default function Register() {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
         toast.success("Registration successful!");
-        navigate("/");
+        // Full reload to ensure Unity initializes fresh
+        setTimeout(() => { window.location.href = "/"; }, 500);
       } else {
         toast.error(data.error || "Registration failed");
       }

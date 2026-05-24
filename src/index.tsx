@@ -25,7 +25,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function AuthRedirect({ children }: { children: React.ReactNode }) {
 	const token = localStorage.getItem("token");
-	if (token) return <Navigate to="/" replace />;
+	if (token) {
+		window.location.href = "/";
+		return null;
+	}
 	return <>{children}</>;
 }
 

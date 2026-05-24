@@ -540,14 +540,12 @@ function runGameEnd() {
     const fCashAmount = fCashouted ? player.f.cashAmount : 0;
     const sCashAmount = sCashouted ? player.s.cashAmount : 0;
 
-    // Save game history
-    if (player.f.betted && player.userId) {
-      const profit = fCashouted ? fCashAmount - player.f.betAmount : -player.f.betAmount;
-      db.addGameHistory({ userId: player.userId, username: player.userName, betAmount: player.f.betAmount, cashoutAt: fCashouted ? player.f.cashOutAt : crashPoint, cashouted: fCashouted, profit });
+    // Save game history (only for losing bets - cashouts already saved at cashout time)
+    if (player.f.betted && !player.f.cashouted && player.userId) {
+      db.addGameHistory({ userId: player.userId, username: player.userName, betAmount: player.f.betAmount, cashoutAt: crashPoint, cashouted: false, profit: -player.f.betAmount });
     }
-    if (player.s.betted && player.userId) {
-      const profit = sCashouted ? sCashAmount - player.s.betAmount : -player.s.betAmount;
-      db.addGameHistory({ userId: player.userId, username: player.userName, betAmount: player.s.betAmount, cashoutAt: sCashouted ? player.s.cashOutAt : crashPoint, cashouted: sCashouted, profit });
+    if (player.s.betted && !player.s.cashouted && player.userId) {
+      db.addGameHistory({ userId: player.userId, username: player.userName, betAmount: player.s.betAmount, cashoutAt: crashPoint, cashouted: false, profit: -player.s.betAmount });
     }
 
     // Save balance
@@ -644,14 +642,31 @@ io.on("connection", (socket) => {
     player[type].cashOutAt = cashOutAt;
     player.balance += winAmount;
 
+    // Save game history immediately on cashout (so history is recorded even if server restarts)
+    if (player.userId) {
+      const profit = winAmount - player[type].betAmount;
+      db.addGameHistory({
+        userId: player.userId,
+        username: player.userName,
+        betAmount: player[type].betAmount,
+        cashoutAt: cashOutAt,
+        cashouted: true,
+        profit
+      });
+      db.updateUserBalance(player.userId, player.balance);
+    }
+
+    // CRITICAL: Mark as no longer betted so UI doesn't show CASHOUT button again
+    player[type].betted = false;
+
     const entry = bettedUsers.find((u) => u.name === player.userName && !u.bot && !u.cashouted);
     if (entry) { entry.cashouted = true; entry.cashOut = cashOutAt; }
 
     io.emit("bettedUserInfo", bettedUsers);
     socket.emit("myBetState", {
       balance: player.balance, userType: player.userType, userName: player.userName, img: player.img,
-      f: { ...player.f, betted: type === "f" ? false : player.f.betted },
-      s: { ...player.s, betted: type === "s" ? false : player.s.betted },
+      f: player.f,
+      s: player.s,
     });
     socket.emit("myInfo", { balance: player.balance, userType: player.userType, userName: player.userName, img: player.img });
     socket.emit("success", `Cashed out at ${cashOutAt.toFixed(2)}x! Won ₹${winAmount.toFixed(2)}`);
