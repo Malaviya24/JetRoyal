@@ -16,6 +16,7 @@ import ChangePassword from './pages/ChangePassword';
 import BankDetails from './pages/BankDetails';
 import Admin from './pages/Admin';
 import BetHistory from './pages/BetHistory';
+import Transactions from './pages/Transactions';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
 	const token = localStorage.getItem("token");
@@ -67,6 +68,7 @@ function AppLayout() {
 							<Route path="/account/password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
 							<Route path="/account/bank" element={<ProtectedRoute><BankDetails /></ProtectedRoute>} />
 							<Route path="/bet-history" element={<ProtectedRoute><BetHistory /></ProtectedRoute>} />
+							<Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
 							<Route path="*" element={<></>} />
 						</Routes>
 					</div>

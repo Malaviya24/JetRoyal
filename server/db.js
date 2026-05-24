@@ -210,18 +210,37 @@ module.exports = {
   },
 
   getTransactions(userId) {
-    return getAll("SELECT * FROM transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 50", [userId]);
+    const rows = getAll("SELECT * FROM transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 50", [userId]);
+    return rows.map(r => ({
+      id: r.id,
+      userId: r.user_id,
+      type: r.type,
+      amount: r.amount,
+      status: r.status,
+      utrNumber: r.utr_number,
+      created_at: r.created_at,
+    }));
   },
 
   getAllTransactions(type) {
-    return getAll("SELECT * FROM transactions WHERE type = ? ORDER BY created_at DESC", [type]);
+    const rows = getAll("SELECT * FROM transactions WHERE type = ? ORDER BY created_at DESC", [type]);
+    // Map snake_case DB columns to camelCase for JS
+    return rows.map(r => ({
+      id: r.id,
+      userId: r.user_id,
+      type: r.type,
+      amount: r.amount,
+      status: r.status,
+      utrNumber: r.utr_number,
+      createdAt: r.created_at,
+    }));
   },
 
   updateTransactionStatus(id, status) {
-    const txn = getOne("SELECT * FROM transactions WHERE id = ?", [id]);
-    if (!txn) return null;
+    const raw = getOne("SELECT * FROM transactions WHERE id = ?", [id]);
+    if (!raw) return null;
     run("UPDATE transactions SET status = ? WHERE id = ?", [status, id]);
-    return txn;
+    return { id: raw.id, userId: raw.user_id, type: raw.type, amount: raw.amount, status: raw.status, utrNumber: raw.utr_number, createdAt: raw.created_at };
   },
 
   // Settings
