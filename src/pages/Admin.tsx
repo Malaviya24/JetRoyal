@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { config } from "../config";
@@ -277,8 +277,8 @@ export default function Admin() {
   const [stats, setStats] = useState<Stats>({ totalUsers: 0, totalDeposits: 0, totalWithdrawals: 0 });
   const [addMoneyUser, setAddMoneyUser] = useState("");
   const [addMoneyAmount, setAddMoneyAmount] = useState("");
-  const [adminUser, setAdminUser] = useState("");
-  const [adminPass, setAdminPass] = useState("");
+  const [adminUser, setAdminUser] = useState(() => sessionStorage.getItem("adminUser") || "");
+  const [adminPass, setAdminPass] = useState(() => sessionStorage.getItem("adminPass") || "");
   const [authenticated, setAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<number | null>(null);
@@ -287,10 +287,18 @@ export default function Admin() {
   const [removeMoneyUser, setRemoveMoneyUser] = useState("");
   const [search, setSearch] = useState("");
 
-  // Build admin auth headers — sent with every admin API call
+  // Keep credentials in a ref so the polling useCallbacks (with empty deps)
+  // always read the latest values, not the empty strings captured at mount.
+  const credsRef = useRef({ user: adminUser, pass: adminPass });
+  useEffect(() => {
+    credsRef.current = { user: adminUser, pass: adminPass };
+  }, [adminUser, adminPass]);
+
+  // Build admin auth headers — sent with every admin API call.
+  // Reads from the ref so polling closures always get fresh credentials.
   const authHeaders = (): Record<string, string> => ({
-    "x-admin-user": adminUser,
-    "x-admin-key": adminPass,
+    "x-admin-user": credsRef.current.user,
+    "x-admin-key": credsRef.current.pass,
   });
   const jsonAuthHeaders = (): Record<string, string> => ({
     "Content-Type": "application/json",
@@ -677,6 +685,8 @@ export default function Admin() {
       return;
     }
     try {
+      // Update ref synchronously so the fetch sends the right values
+      credsRef.current = { user: adminUser, pass: adminPass };
       const res = await fetch(`${config.api}/admin/stats`, {
         headers: {
           "x-admin-user": adminUser,
@@ -684,6 +694,8 @@ export default function Admin() {
         },
       });
       if (res.ok) {
+        sessionStorage.setItem("adminUser", adminUser);
+        sessionStorage.setItem("adminPass", adminPass);
         setAuthenticated(true);
       } else {
         toast.error("Wrong username or password");
@@ -692,6 +704,23 @@ export default function Admin() {
       toast.error("Server error. Try again.");
     }
   };
+
+  const logout = () => {
+    sessionStorage.removeItem("adminUser");
+    sessionStorage.removeItem("adminPass");
+    setAdminUser("");
+    setAdminPass("");
+    credsRef.current = { user: "", pass: "" };
+    setAuthenticated(false);
+  };
+
+  // If credentials were restored from sessionStorage on mount, auto-login
+  useEffect(() => {
+    if (!authenticated && adminUser && adminPass) {
+      tryLogin();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!authenticated) {
     return (
@@ -817,7 +846,7 @@ export default function Admin() {
         </nav>
 
         <div className="sidebar-footer">
-          <button className="logout-btn" onClick={() => setAuthenticated(false)}>
+          <button className="logout-btn" onClick={logout}>
             <Icons.LogOut size={16} />
             <span>Logout</span>
           </button>
@@ -844,7 +873,7 @@ export default function Admin() {
             </div>
           </div>
           <div className="topbar-actions">
-            <button className="btn-ghost" onClick={() => setAuthenticated(false)}>
+            <button className="btn-ghost" onClick={logout}>
               <Icons.LogOut size={14} />
               <span>Logout</span>
             </button>
