@@ -135,6 +135,16 @@ export default function Deposit() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ amount: Number(amount), utrNumber }),
       });
+
+      // Token expired or server JWT_SECRET changed — force re-login.
+      if (res.status === 401) {
+        localStorage.removeItem("token");
+        toast.error("Session expired. Please log in again.");
+        setTimeout(() => { window.location.href = "/login"; }, 1200);
+        setLoading(false);
+        return;
+      }
+
       const data = await res.json();
 
       if (data.success) {
