@@ -1,0 +1,122 @@
+.nf-page {
+  min-height: 100vh;
+  width: 100%;
+  background:
+    radial-gradient(ellipse at top, rgba(230, 147, 8, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at bottom, rgba(230, 57, 70, 0.06) 0%, transparent 60%),
+    #0e0e0e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: #fff;
+}
+
+.nf-card {
+  width: 100%;
+  max-width: 480px;
+  background: #1b1c1d;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 32px 24px 28px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.nf-logo {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 18px;
+}
+
+.nf-code-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 4px 0 18px;
+  height: 96px;
+}
+
+.nf-code {
+  font-size: 96px;
+  font-weight: 800;
+  letter-spacing: -2px;
+  color: #e69308;
+  line-height: 1;
+  text-shadow: 0 6px 24px rgba(230, 147, 8, 0.25);
+}
+
+.nf-plane {
+  position: absolute;
+  right: -28px;
+  top: 6px;
+  transform: rotate(20deg);
+  animation: nf-plane-bob 2.4s ease-in-out infinite;
+  filter: drop-shadow(0 4px 8px rgba(230, 57, 70, 0.4));
+}
+
+@keyframes nf-plane-bob {
+  0%, 100% { transform: rotate(20deg) translateY(0); }
+  50%      { transform: rotate(20deg) translateY(-6px); }
+}
+
+.nf-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+
+.nf-text {
+  color: #aaa;
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0 0 22px;
+}
+
+.nf-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.nf-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 140px;
+  transition: all 0.15s ease;
+
+  &.primary {
+    background: #e69308;
+    color: #0e0e0e;
+
+    &:hover { background: #d18506; transform: translateY(-1px); }
+    &:active { transform: translateY(0); }
+  }
+
+  &.ghost {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ccc;
+
+    &:hover { border-color: #e69308; color: #e69308; }
+  }
+}
+
+@media (max-width: 480px) {
+  .nf-code { font-size: 80px; }
+  .nf-plane { right: -22px; }
+  .nf-actions {
+    flex-direction: column;
+    align-items: stretch;
+
+    .nf-btn { width: 100%; }
+  }
+}

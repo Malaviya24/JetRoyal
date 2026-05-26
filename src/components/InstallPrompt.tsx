@@ -8,8 +8,7 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
-const STORAGE_KEY = "jr_install_dismissed_at";
-const DISMISS_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const STORAGE_KEY = "jr_install_seen";
 
 type Browser =
   | "chrome"
@@ -76,7 +75,7 @@ if (typeof window !== "undefined") {
   });
   window.addEventListener("appinstalled", () => {
     setDeferredPrompt(null);
-    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+    try { localStorage.setItem(STORAGE_KEY, "1"); } catch (e) {}
   });
 }
 
@@ -255,23 +254,19 @@ export function InstallAppPopup() {
 
   useEffect(() => {
     if (isStandalone()) return; // already installed
-
-    let cooldownPassed = true;
+    let alreadySeen = false;
     try {
-      const dismissedAt = Number(localStorage.getItem(STORAGE_KEY) || "0");
-      cooldownPassed = !dismissedAt || Date.now() - dismissedAt > DISMISS_COOLDOWN_MS;
+      alreadySeen = localStorage.getItem(STORAGE_KEY) === "1";
     } catch (e) {}
-    if (!cooldownPassed) return;
+    if (alreadySeen) return;
 
     // Show after a short delay so the page renders first.
-    // We always show it now (even without beforeinstallprompt) because the
-    // card includes manual instructions for every browser.
     const t = window.setTimeout(() => setOpen(true), 1500);
     return () => window.clearTimeout(t);
   }, []);
 
   const dismiss = () => {
-    try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch (e) {}
+    try { localStorage.setItem(STORAGE_KEY, "1"); } catch (e) {}
     setOpen(false);
   };
 

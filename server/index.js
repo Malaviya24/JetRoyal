@@ -994,43 +994,110 @@ io.on("connection", (socket) => {
   socket.on("playBet", (data) => {
     const player = players.get(socket.id);
     if (!player) return;
-    const { betAmount, target, type, auto } = data;
 
-    if (betAmount < BET_LIMITS.min || betAmount > BET_LIMITS.max) { socket.emit("error", { message: "Invalid bet amount", index: type }); return; }
-    if (player.balance < betAmount) { socket.emit("error", { message: "Insufficient balance", index: type }); return; }
+    // ---- input sanitation (treat client as untrusted) ----
+    if (!data || typeof data !== "object") {
+      socket.emit("error", { message: "Invalid bet payload", index: "f" });
+      return;
+    }
+    const type = data.type === "f" || data.type === "s" ? data.type : null;
+    if (!type) {
+      socket.emit("error", { message: "Invalid bet slot", index: "f" });
+      return;
+    }
+    const betAmount = Number(data.betAmount);
+    const target = Number(data.target);
+    const auto = !!data.auto;
 
-    player.balance -= betAmount;
+    if (!Number.isFinite(betAmount) || betAmount <= 0) {
+      socket.emit("error", { message: "Invalid bet amount", index: type });
+      return;
+    }
+    if (betAmount < BET_LIMITS.min || betAmount > BET_LIMITS.max) {
+      socket.emit("error", { message: "Bet outside allowed range", index: type });
+      return;
+    }
+    if (!Number.isFinite(target) || target < 1.01 || target > 1000000) {
+      socket.emit("error", { message: "Invalid auto-cashout target", index: type });
+      return;
+    }
+
+    // ---- state checks ----
+    if (gameState !== "BET") {
+      socket.emit("error", { message: "Betting closed for this round", index: type });
+      return;
+    }
+    if (player[type].betted) {
+      socket.emit("error", { message: "You already placed a bet on this slot", index: type });
+      return;
+    }
+    if (!player.userId) {
+      socket.emit("error", { message: "Please log in to place a bet", index: type });
+      return;
+    }
+    if (player.balance < betAmount) {
+      socket.emit("error", { message: "Insufficient balance", index: type });
+      return;
+    }
+
+    // Round to 2 decimals to avoid float drift
+    const roundedBet = Math.round(betAmount * 100) / 100;
+    const roundedTarget = Math.round(target * 100) / 100;
+
+    player.balance = Math.round((player.balance - roundedBet) * 100) / 100;
     player[type].betted = true;
-    player[type].betAmount = betAmount;
-    player[type].target = target || 2;
-    player[type].auto = auto || false;
+    player[type].betAmount = roundedBet;
+    player[type].target = roundedTarget;
+    player[type].auto = auto;
     player[type].cashouted = false;
     player[type].cashAmount = 0;
 
-    bettedUsers.push({ name: player.userName, betAmount, cashOut: 0, cashouted: false, target: target || 2, img: player.img, bot: false });
+    // Persist debit immediately so reconnect / restart can't lose the bet
+    if (player.userId) db.updateUserBalance(player.userId, player.balance);
+
+    bettedUsers.push({ name: player.userName, betAmount: roundedBet, cashOut: 0, cashouted: false, target: roundedTarget, img: player.img, bot: false });
     io.emit("bettedUserInfo", bettedUsers);
     socket.emit("myBetState", { balance: player.balance, userType: player.userType, userName: player.userName, img: player.img, f: player.f, s: player.s });
     socket.emit("myInfo", { balance: player.balance, userType: player.userType, userName: player.userName, img: player.img });
-    console.log(`[BET] ${player.userName} bet ₹${betAmount} on ${type}`);
+    console.log(`[BET] ${player.userName} bet ₹${roundedBet} on ${type}`);
   });
 
   socket.on("cashOut", (data) => {
     const player = players.get(socket.id);
     if (!player) return;
-    const { type, endTarget } = data;
+    if (!data || typeof data !== "object") return;
+    const type = data.type === "f" || data.type === "s" ? data.type : null;
+    if (!type) return;
 
-    if (gameState !== "PLAYING") { socket.emit("error", { message: "Game not in playing state", index: type }); return; }
+    if (gameState !== "PLAYING") {
+      socket.emit("error", { message: "Game not in playing state", index: type });
+      return;
+    }
     if (!player[type].betted || player[type].cashouted) return;
 
+    // Server is authoritative on the multiplier — never trust the client's number.
     const elapsed = (Date.now() - gameStartTime) / 1000;
     const currentMultiplier = 1 + 0.06 * elapsed + Math.pow(0.06 * elapsed, 2) - Math.pow(0.04 * elapsed, 3) + Math.pow(0.04 * elapsed, 4);
-    const cashOutAt = Math.min(endTarget, currentMultiplier);
-    const winAmount = player[type].betAmount * cashOutAt;
+    // Cap at the actual server-side current multiplier. Ignore client's endTarget
+    // unless the user has a valid auto-target lower than current; this prevents
+    // a tampered client from sending endTarget=99999 to claim a huge payout.
+    let cashOutAt = currentMultiplier;
+    const userTarget = Number(player[type].target);
+    if (Number.isFinite(userTarget) && userTarget > 1.0 && userTarget < currentMultiplier) {
+      cashOutAt = userTarget;
+    }
+    cashOutAt = Math.round(cashOutAt * 100) / 100;
+    if (!Number.isFinite(cashOutAt) || cashOutAt < 1.01) {
+      socket.emit("error", { message: "Cashout failed", index: type });
+      return;
+    }
+
+    const winAmount = Math.round(player[type].betAmount * cashOutAt * 100) / 100;
 
     player[type].cashouted = true;
     player[type].cashAmount = winAmount;
     player[type].cashOutAt = cashOutAt;
-    player.balance += winAmount;
+    player.balance = Math.round((player.balance + winAmount) * 100) / 100;
 
     // Save game history immediately on cashout (so history is recorded even if server restarts)
     if (player.userId) {
@@ -1064,10 +1131,15 @@ io.on("connection", (socket) => {
   });
 
   socket.on("topUp", () => {
+    // Disabled in production. Top-ups must go through the deposit/admin flow.
+    if (IS_PROD) {
+      socket.emit("error", { message: "Top-up disabled. Please deposit via the deposit page.", index: "f" });
+      return;
+    }
     const player = players.get(socket.id);
-    if (!player) return;
+    if (!player || !player.userId) return;
     player.balance += 5000;
-    if (player.userId) db.addBalance(player.userId, 5000);
+    db.addBalance(player.userId, 5000);
     socket.emit("myInfo", { balance: player.balance, userType: player.userType, userName: player.userName, img: player.img });
     socket.emit("success", "Balance topped up! +₹5000");
   });

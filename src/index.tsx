@@ -19,6 +19,7 @@ import Admin from './pages/Admin';
 import BetHistory from './pages/BetHistory';
 import Transactions from './pages/Transactions';
 import Referrals from './pages/Referrals';
+import NotFound from './pages/NotFound';
 import { InstallAppPopup } from './components/InstallPrompt';
 
 // Validate the stored token once on app load. If the server's JWT_SECRET
@@ -60,16 +61,36 @@ const ADMIN_PATH = '/jr-control-panel-7k9x2';
 const STANDALONE_PAGES = [ADMIN_PATH];
 // Auth pages: also standalone but separate to avoid Unity loading on these public routes
 const AUTH_PAGES = ['/login', '/register'];
+// All known game/overlay routes. Anything else is a 404.
+const KNOWN_ROUTES = [
+	'/', '/game',
+	'/deposit', '/withdraw',
+	'/account', '/account/password', '/account/bank',
+	'/bet-history', '/transactions', '/referrals',
+];
 
 function AppLayout() {
 	const location = useLocation();
 	const isStandalone = STANDALONE_PAGES.includes(location.pathname);
 	const isAuthPage = AUTH_PAGES.includes(location.pathname);
+	const isKnownRoute =
+		KNOWN_ROUTES.includes(location.pathname) ||
+		isStandalone ||
+		isAuthPage;
+	// Show the themed 404 for anything we don't recognize
+	const isNotFound = !isKnownRoute;
 	// Game stays mounted on home, deposit, withdraw, account, bet-history, etc.
-	const showGame = !isStandalone && !isAuthPage;
+	const showGame = !isStandalone && !isAuthPage && !isNotFound;
 
 	return (
 		<>
+			{/* 404 — themed page with redirect button */}
+			{isNotFound && (
+				<Routes>
+					<Route path="*" element={<NotFound />} />
+				</Routes>
+			)}
+
 			{/* Game is mounted ONCE for the lifetime of the session */}
 			{showGame && (
 				<div style={{ height: '100%', position: 'relative' }}>
