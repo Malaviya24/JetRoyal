@@ -1,15 +1,19 @@
 {
   "short_name": "JetRoyal",
   "name": "JetRoyal Aviator",
+  "description": "JetRoyal Aviator - Real-time crash betting game.",
   "icons": [
     {
       "src": "jetroyal-logo.svg",
       "type": "image/svg+xml",
-      "sizes": "any"
+      "sizes": "any",
+      "purpose": "any maskable"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "theme_color": "#e69308",
   "background_color": "#0e0e0e"
 }

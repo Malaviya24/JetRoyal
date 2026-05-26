@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import logo from "../assets/images/logo.svg";
 import "../index.scss";
 import Context from "../context";
+import { InstallAppMenuButton } from "./InstallPrompt";
 
 export default function Header() {
   const { state } = React.useContext(Context)
@@ -125,6 +126,11 @@ export default function Header() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34b4ff" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
             <span>Transactions</span>
           </button>
+          <button onClick={() => { setSidebarOpen(false); navigate("/referrals"); }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e69308" strokeWidth="2"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+            <span>Refer &amp; Earn</span>
+          </button>
+          <InstallAppMenuButton onClick={() => setSidebarOpen(false)} />
           <div className="sidebar-divider"></div>
           <button className="logout-item" onClick={() => { setSidebarOpen(false); localStorage.removeItem("token"); localStorage.removeItem("user"); navigate("/login"); }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e63946" strokeWidth="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>

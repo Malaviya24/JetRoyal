@@ -19,6 +19,7 @@ import Admin from './pages/Admin';
 import BetHistory from './pages/BetHistory';
 import Transactions from './pages/Transactions';
 import Referrals from './pages/Referrals';
+import { InstallAppPopup } from './components/InstallPrompt';
 
 // Validate the stored token once on app load. If the server's JWT_SECRET
 // changed (production deploy with new secret) old tokens are invalid;
@@ -114,6 +115,8 @@ function AppLayout() {
 			)}
 
 			<ToastContainer position="top-center" theme="dark" />
+			{/* PWA install popup — shows once per cooldown when the app isn't installed */}
+			<InstallAppPopup />
 		</>
 	);
 }
