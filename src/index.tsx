@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import './index.scss';
 import App from './app';
 import { Provider } from './context';
+import { config } from './config';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Deposit from './pages/Deposit';
@@ -17,6 +18,24 @@ import BankDetails from './pages/BankDetails';
 import Admin from './pages/Admin';
 import BetHistory from './pages/BetHistory';
 import Transactions from './pages/Transactions';
+
+// Validate the stored token once on app load. If the server's JWT_SECRET
+// changed (production deploy with new secret) old tokens are invalid;
+// drop them silently so the user just gets sent to /login on next protected
+// action instead of seeing 401 errors everywhere.
+(function validateTokenOnce() {
+	const token = localStorage.getItem("token");
+	if (!token) return;
+	fetch(`${config.api}/user/profile`, {
+		headers: { Authorization: `Bearer ${token}` },
+	})
+		.then((res) => {
+			if (res.status === 401) {
+				localStorage.removeItem("token");
+			}
+		})
+		.catch(() => { /* offline / network — leave token alone */ });
+})();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
 	const token = localStorage.getItem("token");

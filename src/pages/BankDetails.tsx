@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { config } from "../config";
+import { authFetch } from "../utils/authFetch";
 import "./auth.scss";
 
 export default function BankDetails() {
@@ -24,7 +25,7 @@ export default function BankDetails() {
 
   const fetchBankDetails = async () => {
     try {
-      const res = await fetch(`${config.api}/user/bank-details`, {
+      const res = await authFetch(`${config.api}/user/bank-details`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -50,7 +51,7 @@ export default function BankDetails() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${config.api}/user/bank-details`, {
+      const res = await authFetch(`${config.api}/user/bank-details`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(form),

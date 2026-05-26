@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { config } from "../config";
+import { authFetch } from "../utils/authFetch";
 import "./deposit.scss";
 
 // =====================================================
@@ -130,20 +131,11 @@ export default function Deposit() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${config.api}/user/deposit`, {
+      const res = await authFetch(`${config.api}/user/deposit`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ amount: Number(amount), utrNumber }),
       });
-
-      // Token expired or server JWT_SECRET changed — force re-login.
-      if (res.status === 401) {
-        localStorage.removeItem("token");
-        toast.error("Session expired. Please log in again.");
-        setTimeout(() => { window.location.href = "/login"; }, 1200);
-        setLoading(false);
-        return;
-      }
 
       const data = await res.json();
 
@@ -155,7 +147,10 @@ export default function Deposit() {
         toast.error(data.error || "Deposit failed");
       }
     } catch (err) {
-      toast.error("Server error");
+      // authFetch already handles 401 → redirect; only generic errors land here
+      if ((err as Error)?.message !== "Unauthorized") {
+        toast.error("Server error");
+      }
     }
     setLoading(false);
   };

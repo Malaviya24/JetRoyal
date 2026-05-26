@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { config } from "../config";
+import { authFetch } from "../utils/authFetch";
 import "./auth.scss";
 
 export default function ChangePassword() {
@@ -30,7 +31,7 @@ export default function ChangePassword() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${config.api}/user/change-password`, {
+      const res = await authFetch(`${config.api}/user/change-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(form),

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { config } from "../config";
+import { authFetch } from "../utils/authFetch";
 import "./auth.scss";
 import "./bethistory.scss";
 
@@ -31,7 +32,7 @@ export default function BetHistory() {
   const fetchBetHistory = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${config.api}/user/bet-history`, {
+      const res = await authFetch(`${config.api}/user/bet-history`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
