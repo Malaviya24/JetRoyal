@@ -112,9 +112,15 @@ process.on("exit", () => saveToFile());
 process.on("SIGINT", () => { saveToFile(); process.exit(); });
 
 // ============ HELPER ============
+// sql.js throws "Wrong API use : tried to bind a value of an unknown type (undefined)"
+// if any param is undefined. Normalize by converting undefined to null.
+function safeParams(params = []) {
+  return (params || []).map((p) => (p === undefined ? null : p));
+}
+
 function getOne(sql, params = []) {
   const stmt = db.prepare(sql);
-  stmt.bind(params);
+  stmt.bind(safeParams(params));
   if (stmt.step()) {
     const row = stmt.getAsObject();
     stmt.free();
@@ -126,7 +132,7 @@ function getOne(sql, params = []) {
 
 function getAll(sql, params = []) {
   const stmt = db.prepare(sql);
-  stmt.bind(params);
+  stmt.bind(safeParams(params));
   const rows = [];
   while (stmt.step()) {
     rows.push(stmt.getAsObject());
@@ -136,7 +142,7 @@ function getAll(sql, params = []) {
 }
 
 function run(sql, params = []) {
-  db.run(sql, params);
+  db.run(sql, safeParams(params));
   saveToFile();
 }
 
