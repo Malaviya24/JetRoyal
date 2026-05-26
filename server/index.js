@@ -206,9 +206,22 @@ function authMiddleware(req, res, next) {
 }
 
 // ============ AUTH ROUTES ============
+// Generate a short unique referral code for a user (e.g. "JR4F8B").
+function generateReferralCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/I/1
+  let code = "JR";
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
+
+const REFERRAL_BONUS_AMOUNT = 100; // ₹ paid to both sides
+const REFERRAL_MIN_DEPOSIT = 500;  // referee must deposit at least this much
+
 app.post("/api/register", authLimiter, (req, res) => {
   try {
-    const { username, name, phone, password, confirmPassword } = req.body;
+    const { username, name, phone, password, confirmPassword, referralCode } = req.body;
 
     if (!username || !name || !phone || !password || !confirmPassword)
       return res.status(400).json({ error: "All fields are required" });
@@ -224,17 +237,41 @@ app.post("/api/register", authLimiter, (req, res) => {
     if (db.findUserByUsername(username))
       return res.status(400).json({ error: "Username already taken" });
 
+    // Validate referral code (if provided)
+    let referrer = null;
+    if (referralCode && referralCode.trim()) {
+      const code = referralCode.trim().toUpperCase();
+      referrer = db.findUserByReferralCode(code);
+      if (!referrer) {
+        return res.status(400).json({ error: "Invalid referral code" });
+      }
+    }
+
     const hashedPassword = bcrypt.hashSync(password, 10);
     const avatarOptions = ["/avatars/av-3.png", "/avatars/av-4.png", "/avatars/av-5.png", "/avatars/av-12.png", "/avatars/av-13.png", "/avatars/av-14.png", "/avatars/av-15.png", "/avatars/av-39.png", "/avatars/av-45.png"];
     const img = avatarOptions[Math.floor(Math.random() * avatarOptions.length)];
     const user = db.createUser({ username, name, phone, password: hashedPassword, img });
+
+    // Assign a unique referral code to the new user
+    let newCode;
+    let attempts = 0;
+    do {
+      newCode = generateReferralCode();
+      attempts++;
+    } while (db.findUserByReferralCode(newCode) && attempts < 10);
+    db.setReferralCode(user.id, newCode);
+
+    // Link to referrer if provided
+    if (referrer) {
+      db.setReferredBy(user.id, referrer.id);
+    }
 
     const token = jwt.sign({ id: user.id, username }, JWT_SECRET, { expiresIn: "7d" });
     res.json({
       success: true,
       message: "Registration successful",
       token,
-      user: { id: user.id, username, name, phone, balance: user.balance, img },
+      user: { id: user.id, username, name, phone, balance: user.balance, img, referralCode: newCode },
     });
   } catch (e) {
     console.error("Register error:", e);
@@ -344,6 +381,45 @@ app.post("/api/user/withdraw", apiLimiter, authMiddleware, (req, res) => {
 
 app.get("/api/user/transactions", authMiddleware, (req, res) => {
   res.json({ success: true, transactions: db.getTransactions(req.user.id) });
+});
+
+// ============ REFERRAL ============
+app.get("/api/user/referrals", authMiddleware, (req, res) => {
+  // Make sure the user has a referral_code (back-fill for older accounts)
+  let user = db.findUserById(req.user.id);
+  if (!user) return res.status(404).json({ error: "User not found" });
+  if (!user.referral_code) {
+    let newCode;
+    let attempts = 0;
+    do {
+      newCode = generateReferralCode();
+      attempts++;
+    } while (db.findUserByReferralCode(newCode) && attempts < 10);
+    db.setReferralCode(user.id, newCode);
+    user = db.findUserById(req.user.id);
+  }
+
+  const stats = db.getReferralStats(req.user.id);
+  const list = db.getReferralsForUser(req.user.id);
+  res.json({
+    success: true,
+    referralCode: stats.referralCode,
+    bonusAmount: REFERRAL_BONUS_AMOUNT,
+    minDeposit: REFERRAL_MIN_DEPOSIT,
+    totalEarnings: stats.totalEarnings,
+    totalReferrals: stats.totalReferrals,
+    paidReferrals: stats.paidReferrals,
+    referrals: list,
+  });
+});
+
+// Validate a referral code (used by register page to show "Referred by X" hint)
+app.get("/api/referral/validate/:code", (req, res) => {
+  const code = (req.params.code || "").trim().toUpperCase();
+  if (!code) return res.status(400).json({ valid: false });
+  const u = db.findUserByReferralCode(code);
+  if (!u) return res.json({ valid: false });
+  res.json({ valid: true, referrerName: u.username });
 });
 
 // ============ GAME HISTORY / LEADERBOARD ============
@@ -565,6 +641,29 @@ app.post("/api/admin/deposit-action", adminMiddleware, (req, res) => {
         player.balance = newBalance;
         io.to(socketId).emit("myInfo", { balance: player.balance, userType: true, userName: player.userName, img: player.img });
         io.to(socketId).emit("success", `Your deposit of ₹${txn.amount} has been approved!`);
+      }
+    }
+
+    // Referral bonus: pay once when the referred user's first qualifying deposit is approved
+    if (txn.amount >= REFERRAL_MIN_DEPOSIT) {
+      const paid = db.payReferralBonus(txn.userId, REFERRAL_BONUS_AMOUNT);
+      if (paid) {
+        // Refresh both balances on live sockets
+        const refereeUser = db.findUserById(paid.refereeId);
+        const referrerUser = db.findUserById(paid.referrerId);
+        for (const [socketId, player] of players) {
+          if (player.userId === paid.refereeId && refereeUser) {
+            player.balance = refereeUser.balance;
+            io.to(socketId).emit("myInfo", { balance: player.balance, userType: true, userName: player.userName, img: player.img });
+            io.to(socketId).emit("success", `Welcome bonus credited! +₹${REFERRAL_BONUS_AMOUNT}`);
+          }
+          if (player.userId === paid.referrerId && referrerUser) {
+            player.balance = referrerUser.balance;
+            io.to(socketId).emit("myInfo", { balance: player.balance, userType: true, userName: player.userName, img: player.img });
+            io.to(socketId).emit("success", `Referral bonus earned! +₹${REFERRAL_BONUS_AMOUNT}`);
+          }
+        }
+        console.log(`[REFERRAL] Paid ₹${REFERRAL_BONUS_AMOUNT} to referrer #${paid.referrerId} and referee #${paid.refereeId}`);
       }
     }
   }

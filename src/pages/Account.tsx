@@ -53,6 +53,11 @@ export default function Account() {
             <span className="menu-text">Withdraw</span>
             <span className="menu-arrow">→</span>
           </button>
+          <button className="menu-item" onClick={() => navigate("/referrals")}>
+            <span className="menu-icon">🎁</span>
+            <span className="menu-text">Refer & Earn</span>
+            <span className="menu-arrow">→</span>
+          </button>
           <button className="menu-item logout" onClick={handleLogout}>
             <span className="menu-icon">🚪</span>
             <span className="menu-text">Logout</span>

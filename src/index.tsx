@@ -18,6 +18,7 @@ import BankDetails from './pages/BankDetails';
 import Admin from './pages/Admin';
 import BetHistory from './pages/BetHistory';
 import Transactions from './pages/Transactions';
+import Referrals from './pages/Referrals';
 
 // Validate the stored token once on app load. If the server's JWT_SECRET
 // changed (production deploy with new secret) old tokens are invalid;
@@ -90,6 +91,7 @@ function AppLayout() {
 							<Route path="/account/bank" element={<ProtectedRoute><BankDetails /></ProtectedRoute>} />
 							<Route path="/bet-history" element={<ProtectedRoute><BetHistory /></ProtectedRoute>} />
 							<Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
+							<Route path="/referrals" element={<ProtectedRoute><Referrals /></ProtectedRoute>} />
 							<Route path="*" element={<></>} />
 						</Routes>
 					</div>

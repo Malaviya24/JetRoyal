@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { config } from "../config";
 import logo from "../assets/images/jetroyal-logo.svg";
@@ -7,17 +7,43 @@ import "./auth.scss";
 
 export default function Register() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Read referral code from ?ref=XXX (or ?referral=XXX). When present,
+  // the field is locked so the user can't accidentally remove it.
+  const refFromUrl = (searchParams.get("ref") || searchParams.get("referral") || "").toUpperCase().trim();
+
   const [form, setForm] = useState({
     username: "",
     name: "",
     phone: "",
     password: "",
     confirmPassword: "",
+    referralCode: refFromUrl,
   });
+  const [refLocked, setRefLocked] = useState(!!refFromUrl);
+  const [refValidated, setRefValidated] = useState<{ valid: boolean; name?: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Validate the referral code once when prefilled from the URL
+  useEffect(() => {
+    if (!refFromUrl) return;
+    fetch(`${config.api}/referral/validate/${encodeURIComponent(refFromUrl)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d && d.valid) setRefValidated({ valid: true, name: d.referrerName });
+        else setRefValidated({ valid: false });
+      })
+      .catch(() => {});
+  }, [refFromUrl]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === "referralCode") {
+      setForm({ ...form, referralCode: value.toUpperCase() });
+    } else {
+      setForm({ ...form, [name]: value });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -59,6 +85,13 @@ export default function Register() {
           <img src={logo} alt="JetRoyal" className="auth-logo-img" />
           <h1>Create Account</h1>
           <p>Register to start playing</p>
+          {refLocked && refValidated && (
+            <p style={{ marginTop: 6, color: refValidated.valid ? "#28a909" : "#e63946", fontWeight: 600 }}>
+              {refValidated.valid
+                ? `Referred by ${refValidated.name}`
+                : "Invalid referral link"}
+            </p>
+          )}
         </div>
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
@@ -117,6 +150,19 @@ export default function Register() {
               value={form.confirmPassword}
               onChange={handleChange}
               required
+            />
+          </div>
+          <div className="form-group">
+            <label>Referral Code <span style={{ opacity: 0.6, fontWeight: 400 }}>(optional)</span></label>
+            <input
+              type="text"
+              name="referralCode"
+              placeholder="Enter referral code"
+              value={form.referralCode}
+              onChange={handleChange}
+              readOnly={refLocked}
+              style={refLocked ? { background: "#1a1a1a", opacity: 0.85, cursor: "not-allowed" } : undefined}
+              maxLength={12}
             />
           </div>
           <button type="submit" className="auth-btn" disabled={loading}>

@@ -33,6 +33,16 @@ async function initDB() {
     )
   `);
 
+  // Referral columns — added via ALTER for backward compatibility with existing DBs
+  // referral_code: this user's own code (unique, shareable)
+  // referred_by_id: id of the user who referred them (NULL if no referrer)
+  // referral_bonus_paid: 1 once the deposit-trigger bonus has been paid out for this user
+  // referral_earnings: total bonus amount this user has earned from referrals
+  try { db.run("ALTER TABLE users ADD COLUMN referral_code TEXT"); } catch (e) {}
+  try { db.run("ALTER TABLE users ADD COLUMN referred_by_id INTEGER"); } catch (e) {}
+  try { db.run("ALTER TABLE users ADD COLUMN referral_bonus_paid INTEGER DEFAULT 0"); } catch (e) {}
+  try { db.run("ALTER TABLE users ADD COLUMN referral_earnings REAL DEFAULT 0"); } catch (e) {}
+
   db.run(`
     CREATE TABLE IF NOT EXISTS transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -164,6 +174,75 @@ module.exports = {
       [username, name, phone, password, img]);
     const user = getOne("SELECT * FROM users WHERE username = ?", [username]);
     return user;
+  },
+
+  // ============ Referral system ============
+  findUserByReferralCode(code) {
+    return getOne("SELECT * FROM users WHERE referral_code = ?", [code]);
+  },
+
+  setReferralCode(userId, code) {
+    run("UPDATE users SET referral_code = ? WHERE id = ?", [code, userId]);
+  },
+
+  setReferredBy(userId, referrerId) {
+    run("UPDATE users SET referred_by_id = ? WHERE id = ?", [referrerId, userId]);
+  },
+
+  // Returns the people who used this user's referral code, with their deposit status.
+  getReferralsForUser(referrerId) {
+    return getAll(`
+      SELECT
+        u.id           AS userId,
+        u.username     AS username,
+        u.name         AS name,
+        u.created_at   AS createdAt,
+        u.referral_bonus_paid AS bonusPaid,
+        COALESCE((
+          SELECT SUM(t.amount) FROM transactions t
+          WHERE t.user_id = u.id AND t.type = 'deposit' AND t.status = 'approved'
+        ), 0) AS totalDeposited
+      FROM users u
+      WHERE u.referred_by_id = ?
+      ORDER BY u.created_at DESC
+    `, [referrerId]);
+  },
+
+  // Pay the one-time referral bonus to BOTH the referrer and the referee.
+  // Returns { referrerId, refereeId } when paid, or null if conditions not met.
+  payReferralBonus(refereeId, bonusAmount) {
+    const referee = getOne("SELECT id, referred_by_id, referral_bonus_paid FROM users WHERE id = ?", [refereeId]);
+    if (!referee) return null;
+    if (!referee.referred_by_id) return null;     // user wasn't referred
+    if (referee.referral_bonus_paid) return null; // already paid
+
+    const referrer = getOne("SELECT id FROM users WHERE id = ?", [referee.referred_by_id]);
+    if (!referrer) return null;
+
+    // Credit both balances and mark referee as paid
+    run("UPDATE users SET balance = balance + ?, referral_bonus_paid = 1 WHERE id = ?", [bonusAmount, refereeId]);
+    run("UPDATE users SET balance = balance + ?, referral_earnings = COALESCE(referral_earnings, 0) + ? WHERE id = ?",
+      [bonusAmount, bonusAmount, referrer.id]);
+
+    // Log both sides as transactions for traceability
+    run("INSERT INTO transactions (user_id, type, amount, status, utr_number) VALUES (?,?,?,?,?)",
+      [refereeId, "referral_bonus", bonusAmount, "approved", ""]);
+    run("INSERT INTO transactions (user_id, type, amount, status, utr_number) VALUES (?,?,?,?,?)",
+      [referrer.id, "referral_bonus", bonusAmount, "approved", ""]);
+
+    return { referrerId: referrer.id, refereeId };
+  },
+
+  getReferralStats(userId) {
+    const u = getOne("SELECT referral_code, referral_earnings FROM users WHERE id = ?", [userId]);
+    const total = getOne("SELECT COUNT(*) AS cnt FROM users WHERE referred_by_id = ?", [userId]);
+    const paid = getOne("SELECT COUNT(*) AS cnt FROM users WHERE referred_by_id = ? AND referral_bonus_paid = 1", [userId]);
+    return {
+      referralCode: u ? u.referral_code : null,
+      totalEarnings: u && u.referral_earnings ? u.referral_earnings : 0,
+      totalReferrals: total ? total.cnt : 0,
+      paidReferrals: paid ? paid.cnt : 0,
+    };
   },
 
   updateUserBalance(id, balance) {
