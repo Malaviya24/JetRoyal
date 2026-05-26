@@ -55,9 +55,11 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many attempts, please try again later" },
 });
+// Admin panel polls every 3s across multiple endpoints — be generous.
+// This is per-minute, and the panel is already protected by username + password.
 const adminLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 200,
+  windowMs: 60 * 1000, // 1 minute
+  max: 600,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many admin requests" },
@@ -980,6 +982,14 @@ io.on("connection", (socket) => {
 
 // ============ START ============
 const PORT = parseInt(process.env.PORT || "5000", 10);
+
+  // Express error handler — catch any thrown errors so the client always gets JSON
+  // (rather than CORS-blocked HTML or hanging requests).
+  app.use((err, req, res, next) => {
+    console.error("[ERROR]", req.method, req.path, err.message);
+    if (res.headersSent) return next(err);
+    res.status(err.status || 500).json({ error: err.message || "Server error" });
+  });
 
   server.listen(PORT, () => {
     console.log(`\n🚀 Aviator Crash Backend on http://localhost:${PORT}`);
