@@ -188,13 +188,11 @@ let fDecreaseAmount = 0;
 let sIncreaseAmount = 0;
 let sDecreaseAmount = 0;
 
-let newState;
 let newBetState;
 
 export const Provider = ({ children }: any) => {
   const [state, setState] = React.useState<ContextDataType>(init_state);
 
-  newState = state;
   const [unity, setUnity] = React.useState({
     unityState: false,
     unityLoading: false,
@@ -209,7 +207,7 @@ export const Provider = ({ children }: any) => {
 
   const [bettedUsers, setBettedUsers] = React.useState<BettedUserType[]>([]);
   const update = (attrs: Partial<ContextDataType>) => {
-    setState({ ...state, ...attrs });
+    setState((prev) => ({ ...prev, ...attrs }));
   };
   const [previousHand, setPreviousHand] = React.useState<BettedUserType[]>([]);
   const [history, setHistory] = React.useState<number[]>([]);
@@ -277,11 +275,18 @@ export const Provider = ({ children }: any) => {
     });
 
     socket.on("myInfo", (user: UserType) => {
-      let attrs = state;
-      attrs.userInfo.balance = user.balance;
-      attrs.userInfo.userType = user.userType;
-      attrs.userInfo.userName = user.userName;
-      update(attrs);
+      // Use functional setState so we always work off the latest state
+      // and DO NOT clobber the user-typed bet amount, target, auto, etc.
+      setState((prev) => ({
+        ...prev,
+        userInfo: {
+          ...prev.userInfo,
+          balance: user.balance,
+          userType: user.userType,
+          userName: user.userName,
+          img: user.img || prev.userInfo.img,
+        },
+      }));
     });
 
     socket.on("history", (history: any) => {
@@ -297,82 +302,102 @@ export const Provider = ({ children }: any) => {
     });
 
     socket.on("finishGame", (user: UserType) => {
-      let attrs = newState;
-      let fauto = attrs.userInfo.f.auto;
-      let sauto = attrs.userInfo.s.auto;
-      let fbetAmount = attrs.userInfo.f.betAmount;
-      let sbetAmount = attrs.userInfo.s.betAmount;
+      // Use functional setState so we always read the freshest user-typed state
       let betStatus = newBetState;
-      attrs.userInfo = user;
-      attrs.userInfo.f.betAmount = fbetAmount;
-      attrs.userInfo.s.betAmount = sbetAmount;
-      attrs.userInfo.f.auto = fauto;
-      attrs.userInfo.s.auto = sauto;
-      if (!user.f.betted) {
-        betStatus.fbetted = false;
-        if (attrs.userInfo.f.auto) {
-          if (user.f.cashouted) {
-            fIncreaseAmount += user.f.cashAmount;
-            if (attrs.finState && attrs.fincrease - fIncreaseAmount <= 0) {
-              attrs.userInfo.f.auto = false;
-              betStatus.fbetState = false;
-              fIncreaseAmount = 0;
-            } else if (
-              attrs.fsingle &&
-              attrs.fsingleAmount <= user.f.cashAmount
-            ) {
-              attrs.userInfo.f.auto = false;
-              betStatus.fbetState = false;
+      setState((prev) => {
+        const fauto = prev.userInfo.f.auto;
+        const sauto = prev.userInfo.s.auto;
+        // Preserve user-typed bet amounts and targets — do NOT overwrite them with server payload
+        const fbetAmount = prev.userInfo.f.betAmount;
+        const sbetAmount = prev.userInfo.s.betAmount;
+        const ftarget = prev.userInfo.f.target;
+        const starget = prev.userInfo.s.target;
+
+        const nextUserInfo: UserType = {
+          ...user,
+          f: {
+            ...user.f,
+            betAmount: fbetAmount,
+            target: ftarget,
+            auto: fauto,
+          },
+          s: {
+            ...user.s,
+            betAmount: sbetAmount,
+            target: starget,
+            auto: sauto,
+          },
+        };
+
+        let nextAutoCound_f = prev.fautoCound;
+        let nextAutoCound_s = prev.sautoCound;
+
+        if (!user.f.betted) {
+          betStatus.fbetted = false;
+          if (fauto) {
+            if (user.f.cashouted) {
+              fIncreaseAmount += user.f.cashAmount;
+              if (prev.finState && prev.fincrease - fIncreaseAmount <= 0) {
+                nextUserInfo.f.auto = false;
+                betStatus.fbetState = false;
+                fIncreaseAmount = 0;
+              } else if (prev.fsingle && prev.fsingleAmount <= user.f.cashAmount) {
+                nextUserInfo.f.auto = false;
+                betStatus.fbetState = false;
+              } else {
+                nextUserInfo.f.auto = true;
+                betStatus.fbetState = true;
+              }
             } else {
-              attrs.userInfo.f.auto = true;
-              betStatus.fbetState = true;
-            }
-          } else {
-            fDecreaseAmount += user.f.betAmount;
-            if (attrs.fdeState && attrs.fdecrease - fDecreaseAmount <= 0) {
-              attrs.userInfo.f.auto = false;
-              betStatus.fbetState = false;
-              fDecreaseAmount = 0;
-            } else {
-              attrs.userInfo.f.auto = true;
-              betStatus.fbetState = true;
-            }
-          }
-        }
-      }
-      if (!user.s.betted) {
-        betStatus.sbetted = false;
-        if (user.s.auto) {
-          if (user.s.cashouted) {
-            sIncreaseAmount += user.s.cashAmount;
-            if (attrs.sinState && attrs.sincrease - sIncreaseAmount <= 0) {
-              attrs.userInfo.s.auto = false;
-              betStatus.sbetState = false;
-              sIncreaseAmount = 0;
-            } else if (
-              attrs.ssingle &&
-              attrs.ssingleAmount <= user.s.cashAmount
-            ) {
-              attrs.userInfo.s.auto = false;
-              betStatus.sbetState = false;
-            } else {
-              attrs.userInfo.s.auto = true;
-              betStatus.sbetState = true;
-            }
-          } else {
-            sDecreaseAmount += user.s.betAmount;
-            if (attrs.sdeState && attrs.sdecrease - sDecreaseAmount <= 0) {
-              attrs.userInfo.s.auto = false;
-              betStatus.sbetState = false;
-              sDecreaseAmount = 0;
-            } else {
-              attrs.userInfo.s.auto = true;
-              betStatus.sbetState = true;
+              fDecreaseAmount += user.f.betAmount;
+              if (prev.fdeState && prev.fdecrease - fDecreaseAmount <= 0) {
+                nextUserInfo.f.auto = false;
+                betStatus.fbetState = false;
+                fDecreaseAmount = 0;
+              } else {
+                nextUserInfo.f.auto = true;
+                betStatus.fbetState = true;
+              }
             }
           }
         }
-      }
-      update(attrs);
+        if (!user.s.betted) {
+          betStatus.sbetted = false;
+          if (sauto) {
+            if (user.s.cashouted) {
+              sIncreaseAmount += user.s.cashAmount;
+              if (prev.sinState && prev.sincrease - sIncreaseAmount <= 0) {
+                nextUserInfo.s.auto = false;
+                betStatus.sbetState = false;
+                sIncreaseAmount = 0;
+              } else if (prev.ssingle && prev.ssingleAmount <= user.s.cashAmount) {
+                nextUserInfo.s.auto = false;
+                betStatus.sbetState = false;
+              } else {
+                nextUserInfo.s.auto = true;
+                betStatus.sbetState = true;
+              }
+            } else {
+              sDecreaseAmount += user.s.betAmount;
+              if (prev.sdeState && prev.sdecrease - sDecreaseAmount <= 0) {
+                nextUserInfo.s.auto = false;
+                betStatus.sbetState = false;
+                sDecreaseAmount = 0;
+              } else {
+                nextUserInfo.s.auto = true;
+                betStatus.sbetState = true;
+              }
+            }
+          }
+        }
+
+        return {
+          ...prev,
+          userInfo: nextUserInfo,
+          fautoCound: nextAutoCound_f,
+          sautoCound: nextAutoCound_s,
+        };
+      });
       setUserBetState(betStatus);
     });
 

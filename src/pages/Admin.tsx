@@ -277,6 +277,7 @@ export default function Admin() {
   const [stats, setStats] = useState<Stats>({ totalUsers: 0, totalDeposits: 0, totalWithdrawals: 0 });
   const [addMoneyUser, setAddMoneyUser] = useState("");
   const [addMoneyAmount, setAddMoneyAmount] = useState("");
+  const [adminUser, setAdminUser] = useState("");
   const [adminPass, setAdminPass] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -286,12 +287,20 @@ export default function Admin() {
   const [removeMoneyUser, setRemoveMoneyUser] = useState("");
   const [search, setSearch] = useState("");
 
-  const ADMIN_PASSWORD = "admin123";
+  // Build admin auth headers — sent with every admin API call
+  const authHeaders = (): Record<string, string> => ({
+    "x-admin-user": adminUser,
+    "x-admin-key": adminPass,
+  });
+  const jsonAuthHeaders = (): Record<string, string> => ({
+    "Content-Type": "application/json",
+    ...authHeaders(),
+  });
 
   const fetchUsers = useCallback(async () => {
     try {
       const res = await fetch(`${config.api}/admin/users`, {
-        headers: { "x-admin-key": ADMIN_PASSWORD },
+        headers: authHeaders(),
       });
       const data = await res.json();
       if (data.success) setUsers(data.users);
@@ -301,7 +310,7 @@ export default function Admin() {
   const fetchResults = useCallback(async () => {
     try {
       const res = await fetch(`${config.api}/admin/results`, {
-        headers: { "x-admin-key": ADMIN_PASSWORD },
+        headers: authHeaders(),
       });
       const data = await res.json();
       if (data.success) setResults(data.results);
@@ -311,7 +320,7 @@ export default function Admin() {
   const fetchDeposits = useCallback(async () => {
     try {
       const res = await fetch(`${config.api}/admin/deposits`, {
-        headers: { "x-admin-key": ADMIN_PASSWORD },
+        headers: authHeaders(),
       });
       const data = await res.json();
       if (data.success) setDeposits(data.deposits);
@@ -321,7 +330,7 @@ export default function Admin() {
   const fetchWithdrawals = useCallback(async () => {
     try {
       const res = await fetch(`${config.api}/admin/withdrawals`, {
-        headers: { "x-admin-key": ADMIN_PASSWORD },
+        headers: authHeaders(),
       });
       const data = await res.json();
       if (data.success) setWithdrawals(data.withdrawals);
@@ -331,7 +340,7 @@ export default function Admin() {
   const fetchSettings = useCallback(async () => {
     try {
       const res = await fetch(`${config.api}/admin/settings`, {
-        headers: { "x-admin-key": ADMIN_PASSWORD },
+        headers: authHeaders(),
       });
       const data = await res.json();
       if (data.success) setSettings(data.settings);
@@ -341,7 +350,7 @@ export default function Admin() {
   const fetchAllBets = useCallback(async () => {
     try {
       const res = await fetch(`${config.api}/admin/all-bets`, {
-        headers: { "x-admin-key": ADMIN_PASSWORD },
+        headers: authHeaders(),
       });
       const data = await res.json();
       if (data.success) setAllBets(data.bets);
@@ -351,7 +360,7 @@ export default function Admin() {
   const fetchCrashQueue = useCallback(async () => {
     try {
       const res = await fetch(`${config.api}/admin/crash-queue`, {
-        headers: { "x-admin-key": ADMIN_PASSWORD },
+        headers: authHeaders(),
       });
       const data = await res.json();
       if (data.success) setCrashQueue(data.queue);
@@ -361,7 +370,7 @@ export default function Admin() {
   const fetchLiveBets = useCallback(async () => {
     try {
       const res = await fetch(`${config.api}/admin/live-bets`, {
-        headers: { "x-admin-key": ADMIN_PASSWORD },
+        headers: authHeaders(),
       });
       const data = await res.json();
       if (data.success) setLiveBets(data);
@@ -372,7 +381,7 @@ export default function Admin() {
     try {
       await fetch(`${config.api}/admin/crash-queue/${idx}`, {
         method: "DELETE",
-        headers: { "x-admin-key": ADMIN_PASSWORD },
+        headers: authHeaders(),
       });
       fetchCrashQueue();
     } catch (e) {}
@@ -383,7 +392,7 @@ export default function Admin() {
     try {
       await fetch(`${config.api}/admin/clear-crash-queue`, {
         method: "POST",
-        headers: { "x-admin-key": ADMIN_PASSWORD },
+        headers: authHeaders(),
       });
       toast.success("Queue cleared");
       fetchCrashQueue();
@@ -393,7 +402,7 @@ export default function Admin() {
   const fetchStats = useCallback(async () => {
     try {
       const res = await fetch(`${config.api}/admin/stats`, {
-        headers: { "x-admin-key": ADMIN_PASSWORD },
+        headers: authHeaders(),
       });
       const data = await res.json();
       if (data.success) setStats(data.stats);
@@ -403,7 +412,7 @@ export default function Admin() {
   const fetchUserDetails = async (userId: number) => {
     try {
       const res = await fetch(`${config.api}/admin/user-details/${userId}`, {
-        headers: { "x-admin-key": ADMIN_PASSWORD },
+        headers: authHeaders(),
       });
       const data = await res.json();
       if (data.success) {
@@ -419,7 +428,7 @@ export default function Admin() {
     try {
       const res = await fetch(`${config.api}/admin/delete-user`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-key": ADMIN_PASSWORD },
+        headers: jsonAuthHeaders(),
         body: JSON.stringify({ userId }),
       });
       const data = await res.json();
@@ -444,7 +453,7 @@ export default function Admin() {
     try {
       const res = await fetch(`${config.api}/admin/remove-money`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-key": ADMIN_PASSWORD },
+        headers: jsonAuthHeaders(),
         body: JSON.stringify({ userId, amount }),
       });
       const data = await res.json();
@@ -504,7 +513,7 @@ export default function Admin() {
     try {
       const res = await fetch(`${config.api}/admin/set-crash`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-key": ADMIN_PASSWORD },
+        headers: jsonAuthHeaders(),
         body: JSON.stringify({ crashPoint: value }),
       });
       const data = await res.json();
@@ -529,7 +538,7 @@ export default function Admin() {
     try {
       const res = await fetch(`${config.api}/admin/add-money`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-key": ADMIN_PASSWORD },
+        headers: jsonAuthHeaders(),
         body: JSON.stringify({ userId, amount }),
       });
       const data = await res.json();
@@ -550,7 +559,7 @@ export default function Admin() {
     try {
       const res = await fetch(`${config.api}/admin/deposit-action`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-key": ADMIN_PASSWORD },
+        headers: jsonAuthHeaders(),
         body: JSON.stringify({ id, action }),
       });
       const data = await res.json();
@@ -570,7 +579,7 @@ export default function Admin() {
     try {
       const res = await fetch(`${config.api}/admin/withdrawal-action`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-key": ADMIN_PASSWORD },
+        headers: jsonAuthHeaders(),
         body: JSON.stringify({ id, action }),
       });
       const data = await res.json();
@@ -590,7 +599,7 @@ export default function Admin() {
     try {
       const res = await fetch(`${config.api}/admin/settings`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-key": ADMIN_PASSWORD },
+        headers: jsonAuthHeaders(),
         body: JSON.stringify(settings),
       });
       const data = await res.json();
@@ -614,7 +623,7 @@ export default function Admin() {
     try {
       const res = await fetch(`${config.api}/admin/upload-qr`, {
         method: "POST",
-        headers: { "x-admin-key": ADMIN_PASSWORD },
+        headers: authHeaders(),
         body: formData,
       });
       const data = await res.json();
@@ -660,6 +669,30 @@ export default function Admin() {
   const currentItem = menuItems.find((m) => m.key === tab);
   const CurrentIcon = currentItem ? Icons[currentItem.icon] : Icons.Dashboard;
 
+  // Authenticate by hitting a real admin endpoint with both username + password.
+  // Backend validates and returns 403 if wrong.
+  const tryLogin = async () => {
+    if (!adminUser || !adminPass) {
+      toast.error("Enter username and password");
+      return;
+    }
+    try {
+      const res = await fetch(`${config.api}/admin/stats`, {
+        headers: {
+          "x-admin-user": adminUser,
+          "x-admin-key": adminPass,
+        },
+      });
+      if (res.ok) {
+        setAuthenticated(true);
+      } else {
+        toast.error("Wrong username or password");
+      }
+    } catch (e) {
+      toast.error("Server error. Try again.");
+    }
+  };
+
   if (!authenticated) {
     return (
       <div className="admin-page">
@@ -668,7 +701,22 @@ export default function Admin() {
             <Icons.Lock size={26} />
           </div>
           <h1>Admin Panel</h1>
-          <p>Enter admin password to continue</p>
+          <p>Sign in with admin credentials</p>
+          <div className="login-field">
+            <span className="field-icon">
+              <Icons.User size={16} />
+            </span>
+            <input
+              type="text"
+              placeholder="Admin username"
+              value={adminUser}
+              autoComplete="username"
+              onChange={(e) => setAdminUser(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") tryLogin();
+              }}
+            />
+          </div>
           <div className="login-field">
             <span className="field-icon">
               <Icons.Key size={16} />
@@ -677,29 +725,14 @@ export default function Admin() {
               type="password"
               placeholder="Admin password"
               value={adminPass}
+              autoComplete="current-password"
               onChange={(e) => setAdminPass(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  if (adminPass === ADMIN_PASSWORD) {
-                    setAuthenticated(true);
-                  } else {
-                    toast.error("Wrong password");
-                  }
-                }
+                if (e.key === "Enter") tryLogin();
               }}
             />
           </div>
-          <button
-            onClick={() => {
-              if (adminPass === ADMIN_PASSWORD) {
-                setAuthenticated(true);
-              } else {
-                toast.error("Wrong password");
-              }
-            }}
-          >
-            LOGIN
-          </button>
+          <button onClick={tryLogin}>LOGIN</button>
           <button className="back" onClick={() => navigate("/login")}>
             ← Back
           </button>
@@ -1070,7 +1103,7 @@ export default function Admin() {
                         try {
                           const res = await fetch(`${config.api}/admin/crash-now`, {
                             method: "POST",
-                            headers: { "x-admin-key": ADMIN_PASSWORD },
+                            headers: authHeaders(),
                           });
                           const data = await res.json();
                           if (data.success) toast.success(data.message);

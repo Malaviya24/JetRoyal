@@ -34,7 +34,9 @@ function AuthRedirect({ children }: { children: React.ReactNode }) {
 }
 
 // Standalone pages don't have the game running underneath
-const STANDALONE_PAGES = ['/admin'];
+// NOTE: admin panel lives at an obscure path so it can't be guessed by users.
+const ADMIN_PATH = '/jr-control-panel-7k9x2';
+const STANDALONE_PAGES = [ADMIN_PATH];
 // Auth pages: also standalone but separate to avoid Unity loading on these public routes
 const AUTH_PAGES = ['/login', '/register'];
 
@@ -86,7 +88,7 @@ function AppLayout() {
 			{/* Admin page — completely separate */}
 			{isStandalone && (
 				<Routes>
-					<Route path="/admin" element={<Admin />} />
+					<Route path={ADMIN_PATH} element={<Admin />} />
 				</Routes>
 			)}
 

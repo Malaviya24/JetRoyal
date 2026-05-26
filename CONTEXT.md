@@ -1,11 +1,11 @@
-# JetRoyal Aviator — Full Project Context
+i# JetRoyal Aviator — Full Project Context
 
 ## Overview
 A real-time multiplayer crash betting game (Aviator-style) with Unity WebGL plane animation. Players bet before each round, watch a multiplier climb, and must cash out before the plane "flies away" (crashes). Built with React frontend + Node.js backend + Socket.IO for real-time communication + SQLite (sql.js) for persistent storage.
 
 **Live URL:** https://game.idkwhoami.in  
 **GitHub:** https://github.com/Malaviya24/JetRoyal  
-**Admin Panel:** /admin (password: `admin123` — change in server/index.js `ADMIN_KEY`)
+**Admin Panel:** `/jr-control-panel-7k9x2` (obscure path, requires username + password — set via `ADMIN_USERNAME` + `ADMIN_KEY` in `server/.env`)
 
 ---
 
@@ -204,9 +204,24 @@ wss: ""        // empty — same origin
 ---
 
 ## Environment Variables
+
+### Frontend (`.env`)
 - `REACT_APP_API_URL` — Backend URL (only needed for local dev: `http://localhost:5000`). In production with Nginx proxy, leave empty or don't set.
-- `JWT_SECRET` — In server/index.js (change for production)
-- `ADMIN_KEY` — In server/index.js (change for production)
+
+### Backend (`server/.env`) — see `server/.env.example`
+- `NODE_ENV` — `production` on the VPS, otherwise `development`.
+- `PORT` — defaults to 5000.
+- `JWT_SECRET` — long random string. **Required in production.**
+- `ADMIN_USERNAME` — admin login username (default `admin`).
+- `ADMIN_KEY` — admin login password. **Required in production.**
+- `ALLOWED_ORIGINS` — comma-separated list of CORS origins, e.g. `https://game.idkwhoami.in`.
+
+### Production Hardening (already in place)
+- `helmet` for HTTP security headers
+- `express-rate-limit` on auth + admin + write endpoints
+- CORS locked to `ALLOWED_ORIGINS` in production
+- Admin requires both `x-admin-user` and `x-admin-key` headers
+- Admin URL is obscured (`/jr-control-panel-7k9x2`)
 
 ---
 

@@ -7,11 +7,67 @@ const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 const db = require("./db");
 
+// Load .env if present (production)
+try { require("dotenv").config(); } catch (e) { /* dotenv optional in dev */ }
+
+const NODE_ENV = process.env.NODE_ENV || "development";
+const IS_PROD = NODE_ENV === "production";
+
 const app = express();
-app.use(cors());
-app.use(express.json());
+
+// ---- security headers ----
+app.use(helmet({
+  contentSecurityPolicy: false, // game UI loads Unity; CSP handled at nginx level
+  crossOriginEmbedderPolicy: false,
+}));
+
+// ---- CORS — locked down in production ----
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow same-origin / no-origin (curl, server-to-server) and whitelist
+    if (!origin) return cb(null, true);
+    if (!IS_PROD) return cb(null, true); // permissive in dev
+    if (ALLOWED_ORIGINS.length === 0) return cb(null, true); // not configured -> permit
+    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    return cb(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+}));
+
+app.use(express.json({ limit: "1mb" }));
+// Trust nginx proxy so rate-limit / req.ip work behind reverse proxy
+app.set("trust proxy", 1);
+
+// ---- rate limits ----
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30, // 30 login/register attempts per IP per 15 min
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts, please try again later" },
+});
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many admin requests" },
+});
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Create uploads directory if not exists
 const UPLOADS_DIR = path.join(__dirname, "uploads");
@@ -40,11 +96,19 @@ const qrUpload = multer({
   },
 });
 
-const JWT_SECRET = "aviator_crash_secret_key_2024";
+const JWT_SECRET = process.env.JWT_SECRET || "aviator_crash_secret_key_2024";
+
+if (IS_PROD && JWT_SECRET === "aviator_crash_secret_key_2024") {
+  console.warn("[WARN] Running in production with default JWT_SECRET. Set JWT_SECRET in .env!");
+}
 
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] },
+  cors: {
+    origin: IS_PROD && ALLOWED_ORIGINS.length > 0 ? ALLOWED_ORIGINS : "*",
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
 });
 
 // ============ GAME CONFIG ============
@@ -140,7 +204,7 @@ function authMiddleware(req, res, next) {
 }
 
 // ============ AUTH ROUTES ============
-app.post("/api/register", (req, res) => {
+app.post("/api/register", authLimiter, (req, res) => {
   try {
     const { username, name, phone, password, confirmPassword } = req.body;
 
@@ -176,7 +240,7 @@ app.post("/api/register", (req, res) => {
   }
 });
 
-app.post("/api/login", (req, res) => {
+app.post("/api/login", authLimiter, (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password)
@@ -238,7 +302,7 @@ app.post("/api/user/bank-details", authMiddleware, (req, res) => {
 });
 
 // ============ DEPOSIT / WITHDRAWAL ============
-app.post("/api/user/deposit", authMiddleware, (req, res) => {
+app.post("/api/user/deposit", apiLimiter, authMiddleware, (req, res) => {
   const { amount, utrNumber } = req.body;
   if (!amount || amount < 100)
     return res.status(400).json({ error: "Minimum deposit is ₹100" });
@@ -250,7 +314,7 @@ app.post("/api/user/deposit", authMiddleware, (req, res) => {
   res.json({ success: true, message: "Deposit request submitted! Awaiting admin approval." });
 });
 
-app.post("/api/user/withdraw", authMiddleware, (req, res) => {
+app.post("/api/user/withdraw", apiLimiter, authMiddleware, (req, res) => {
   const { amount } = req.body;
   if (!amount || amount < 100)
     return res.status(400).json({ error: "Minimum withdrawal is ₹100" });
@@ -298,13 +362,24 @@ app.get("/api/leaderboard", (req, res) => {
 });
 
 // ============ ADMIN ROUTES ============
-const ADMIN_KEY = "admin123";
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "admin";
+const ADMIN_KEY = process.env.ADMIN_KEY || "admin123";
+
+if (IS_PROD && ADMIN_KEY === "admin123") {
+  console.warn("[WARN] Running in production with default ADMIN_KEY. Set ADMIN_KEY in .env!");
+}
 
 function adminMiddleware(req, res, next) {
+  const user = req.headers["x-admin-user"];
   const key = req.headers["x-admin-key"];
-  if (key !== ADMIN_KEY) return res.status(403).json({ error: "Unauthorized" });
+  if (user !== ADMIN_USERNAME || key !== ADMIN_KEY) {
+    return res.status(403).json({ error: "Unauthorized" });
+  }
   next();
 }
+
+// Apply rate limit + auth to all /api/admin routes
+app.use("/api/admin", adminLimiter);
 
 // Admin: set next crash point - now supports queue
 let manualCrashQueue = [];
@@ -433,8 +508,9 @@ app.post("/api/admin/settings", adminMiddleware, (req, res) => {
 // ============ ADMIN: QR IMAGE UPLOAD ============
 app.post("/api/admin/upload-qr", (req, res, next) => {
   // Manual admin auth check (multer middleware needs to run first for files)
+  const user = req.headers["x-admin-user"];
   const key = req.headers["x-admin-key"];
-  if (key !== ADMIN_KEY) return res.status(403).json({ error: "Unauthorized" });
+  if (user !== ADMIN_USERNAME || key !== ADMIN_KEY) return res.status(403).json({ error: "Unauthorized" });
   next();
 }, qrUpload.single("qrImage"), (req, res) => {
   try {
@@ -903,7 +979,7 @@ io.on("connection", (socket) => {
 });
 
 // ============ START ============
-const PORT = 5000;
+const PORT = parseInt(process.env.PORT || "5000", 10);
 
   server.listen(PORT, () => {
     console.log(`\n🚀 Aviator Crash Backend on http://localhost:${PORT}`);
