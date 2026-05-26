@@ -111,6 +111,22 @@
   margin-bottom: 18px;
 }
 
+.install-guide {
+  margin: 16px 0 4px;
+  text-align: left;
+
+  .install-guide-title {
+    font-size: 12px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  .install-ios-steps { margin-bottom: 6px; }
+}
+
 .ios-step {
   display: flex;
   align-items: center;

@@ -11,17 +11,42 @@ interface BeforeInstallPromptEvent extends Event {
 const STORAGE_KEY = "jr_install_dismissed_at";
 const DISMISS_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
+type Browser =
+  | "chrome"
+  | "edge"
+  | "brave"
+  | "firefox"
+  | "safari"
+  | "samsung"
+  | "opera"
+  | "other";
+
+function detectBrowser(): Browser {
+  const ua = navigator.userAgent.toLowerCase();
+  // Check Brave first (Brave UA matches Chrome too)
+  if ((navigator as unknown as { brave?: { isBrave: () => Promise<boolean> } }).brave) return "brave";
+  if (ua.includes("edg/")) return "edge";
+  if (ua.includes("opr/") || ua.includes("opera")) return "opera";
+  if (ua.includes("samsungbrowser")) return "samsung";
+  if (ua.includes("firefox") || ua.includes("fxios")) return "firefox";
+  if (ua.includes("crios") || ua.includes("chrome")) return "chrome";
+  if (ua.includes("safari")) return "safari";
+  return "other";
+}
+
 function isStandalone(): boolean {
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
-    // iOS Safari adds this when launched from home screen
     (window.navigator as unknown as { standalone?: boolean }).standalone === true
   );
 }
 
+function isMobile(): boolean {
+  return /iphone|ipad|ipod|android/i.test(navigator.userAgent);
+}
+
 function isIos(): boolean {
-  const ua = window.navigator.userAgent.toLowerCase();
-  return /iphone|ipad|ipod/.test(ua);
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
 }
 
 // Singleton store so the hamburger button and the popup share state.
@@ -55,38 +80,116 @@ if (typeof window !== "undefined") {
   });
 }
 
-/**
- * Auto-show install popup on first visit (or after cooldown). Hides when
- * already installed. Falls back to iOS instructions on iPhone/iPad.
- */
-export function InstallAppPopup() {
+// ============================================================
+// Browser-specific install instructions
+// ============================================================
+interface Step {
+  num: number;
+  text: React.ReactNode;
+}
+
+function getInstructions(browser: Browser): { title: string; steps: Step[] } {
+  if (isIos()) {
+    return {
+      title: "Add to Home Screen (iOS)",
+      steps: [
+        { num: 1, text: <>Tap the <strong>Share</strong> button at the bottom of Safari</> },
+        { num: 2, text: <>Scroll down and tap <strong>Add to Home Screen</strong></> },
+        { num: 3, text: <>Tap <strong>Add</strong> in the top right corner</> },
+      ],
+    };
+  }
+  switch (browser) {
+    case "chrome":
+      return {
+        title: "Install in Chrome",
+        steps: [
+          { num: 1, text: <>Tap the <strong>⋮ menu</strong> in the top right of Chrome</> },
+          { num: 2, text: <>Choose <strong>Install app</strong> or <strong>Add to Home screen</strong></> },
+          { num: 3, text: <>Tap <strong>Install</strong> to confirm</> },
+        ],
+      };
+    case "edge":
+      return {
+        title: "Install in Edge",
+        steps: [
+          { num: 1, text: <>Click the <strong>⋯ menu</strong> in the top right</> },
+          { num: 2, text: <>Choose <strong>Apps → Install this site as an app</strong></> },
+          { num: 3, text: <>Click <strong>Install</strong></> },
+        ],
+      };
+    case "brave":
+      return {
+        title: "Install in Brave",
+        steps: [
+          { num: 1, text: <>Click the <strong>≡ menu</strong> in the top right of Brave</> },
+          { num: 2, text: <>Choose <strong>Install JetRoyal Aviator…</strong></> },
+          { num: 3, text: <>If you don't see it, open <code>brave://flags</code> and enable <strong>"Desktop PWAs"</strong></> },
+        ],
+      };
+    case "samsung":
+      return {
+        title: "Install on Samsung Internet",
+        steps: [
+          { num: 1, text: <>Tap the <strong>≡ menu</strong> at the bottom right</> },
+          { num: 2, text: <>Choose <strong>Add page to → Home screen</strong></> },
+        ],
+      };
+    case "opera":
+      return {
+        title: "Install in Opera",
+        steps: [
+          { num: 1, text: <>Tap the <strong>O menu</strong></> },
+          { num: 2, text: <>Choose <strong>Add to → Home screen</strong></> },
+        ],
+      };
+    case "firefox":
+      return {
+        title: isMobile() ? "Add to Home (Firefox)" : "Install in Firefox",
+        steps: isMobile()
+          ? [
+              { num: 1, text: <>Tap the <strong>⋮ menu</strong> in the address bar</> },
+              { num: 2, text: <>Choose <strong>Install</strong> or <strong>Add to Home Screen</strong></> },
+            ]
+          : [
+              { num: 1, text: <>Firefox desktop does not yet support PWA install.</> },
+              { num: 2, text: <>Open this site in <strong>Chrome</strong> or <strong>Edge</strong> to install it.</> },
+            ],
+      };
+    case "safari":
+      return {
+        title: "Install in Safari",
+        steps: [
+          { num: 1, text: <>Click <strong>File → Add to Dock</strong> in the menu bar</> },
+          { num: 2, text: <>Confirm by clicking <strong>Add</strong></> },
+        ],
+      };
+    default:
+      return {
+        title: "Add to Home Screen",
+        steps: [
+          { num: 1, text: <>Open your browser's main menu (often <strong>⋮</strong> or <strong>⋯</strong>)</> },
+          { num: 2, text: <>Look for <strong>Install</strong> or <strong>Add to Home screen</strong></> },
+        ],
+      };
+  }
+}
+
+// ============================================================
+// Reusable install card
+// ============================================================
+interface CardProps {
+  onClose: () => void;
+  showLater?: boolean;
+}
+
+function InstallCard({ onClose, showLater = true }: CardProps) {
   const deferredPrompt = useDeferredPrompt();
-  const [open, setOpen] = useState(false);
+  const browser = detectBrowser();
+  const instructions = getInstructions(browser);
+  const canDirectInstall = !!deferredPrompt;
 
-  useEffect(() => {
-    if (isStandalone()) return; // already installed
-    let cooldownPassed = true;
-    try {
-      const dismissedAt = Number(localStorage.getItem(STORAGE_KEY) || "0");
-      cooldownPassed = !dismissedAt || Date.now() - dismissedAt > DISMISS_COOLDOWN_MS;
-    } catch (e) {}
-    if (!cooldownPassed) return;
-
-    // Show after a short delay so the page renders first
-    const t = window.setTimeout(() => {
-      // On non-iOS we wait until the browser fired beforeinstallprompt.
-      // On iOS we still show the manual instructions.
-      if (deferredPrompt || isIos()) setOpen(true);
-    }, 1500);
-    return () => window.clearTimeout(t);
-  }, [deferredPrompt]);
-
-  const dismiss = () => {
-    try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch (e) {}
-    setOpen(false);
-  };
-
-  const install = useCallback(async () => {
+  const tryDirect = useCallback(async () => {
     if (!deferredPrompt) return;
     try {
       await deferredPrompt.prompt();
@@ -97,17 +200,13 @@ export function InstallAppPopup() {
     } catch (e) {
       // ignore
     }
-    dismiss();
-  }, [deferredPrompt]);
-
-  if (!open) return null;
-
-  const ios = isIos() && !deferredPrompt;
+    onClose();
+  }, [deferredPrompt, onClose]);
 
   return (
-    <div className="install-overlay" onClick={dismiss}>
+    <div className="install-overlay" onClick={onClose}>
       <div className="install-card" onClick={(e) => e.stopPropagation()}>
-        <button className="install-close" onClick={dismiss} aria-label="Close">×</button>
+        <button className="install-close" onClick={onClose} aria-label="Close">×</button>
 
         <div className="install-icon" aria-hidden="true">
           <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#e69308" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -122,42 +221,70 @@ export function InstallAppPopup() {
           Add the app to your home screen for a faster, full-screen experience.
         </p>
 
-        {ios ? (
-          <div className="install-ios-steps">
-            <div className="ios-step">
-              <span className="ios-step-num">1</span>
-              <span>Tap the <strong>Share</strong> button below</span>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-                <polyline points="16 6 12 2 8 6" />
-                <line x1="12" y1="2" x2="12" y2="15" />
-              </svg>
-            </div>
-            <div className="ios-step">
-              <span className="ios-step-num">2</span>
-              <span>Choose <strong>Add to Home Screen</strong></span>
-            </div>
-          </div>
-        ) : (
-          <button className="install-btn" onClick={install}>
+        {canDirectInstall && (
+          <button className="install-btn" onClick={tryDirect}>
             Install App
           </button>
         )}
 
-        <button className="install-later" onClick={dismiss}>Maybe later</button>
+        <div className="install-guide">
+          <div className="install-guide-title">{instructions.title}</div>
+          <div className="install-ios-steps">
+            {instructions.steps.map((s) => (
+              <div key={s.num} className="ios-step">
+                <span className="ios-step-num">{s.num}</span>
+                <span>{s.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {showLater && (
+          <button className="install-later" onClick={onClose}>Maybe later</button>
+        )}
       </div>
     </div>
   );
 }
 
-/**
- * Small "Install App" button suitable for the hamburger menu. Renders nothing
- * if the app is already installed or no install path is available.
- */
+// ============================================================
+// Auto popup on first visit
+// ============================================================
+export function InstallAppPopup() {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (isStandalone()) return; // already installed
+
+    let cooldownPassed = true;
+    try {
+      const dismissedAt = Number(localStorage.getItem(STORAGE_KEY) || "0");
+      cooldownPassed = !dismissedAt || Date.now() - dismissedAt > DISMISS_COOLDOWN_MS;
+    } catch (e) {}
+    if (!cooldownPassed) return;
+
+    // Show after a short delay so the page renders first.
+    // We always show it now (even without beforeinstallprompt) because the
+    // card includes manual instructions for every browser.
+    const t = window.setTimeout(() => setOpen(true), 1500);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  const dismiss = () => {
+    try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch (e) {}
+    setOpen(false);
+  };
+
+  if (!open) return null;
+  return <InstallCard onClose={dismiss} />;
+}
+
+// ============================================================
+// Hamburger menu button — always visible (unless installed)
+// ============================================================
 export function InstallAppMenuButton({ onClick }: { onClick?: () => void }) {
-  const deferredPrompt = useDeferredPrompt();
+  const [showCard, setShowCard] = useState(false);
   const [, rerender] = useState(0);
-  const [showIosHint, setShowIosHint] = useState(false);
 
   useEffect(() => {
     // Re-render once after mount so isStandalone() runs in browser
@@ -166,24 +293,10 @@ export function InstallAppMenuButton({ onClick }: { onClick?: () => void }) {
 
   if (isStandalone()) return null;
 
-  const handleClick = async () => {
+  const handleClick = () => {
     onClick?.();
-    if (deferredPrompt) {
-      try {
-        await deferredPrompt.prompt();
-        const choice = await deferredPrompt.userChoice;
-        if (choice.outcome === "accepted") setDeferredPrompt(null);
-      } catch (e) {}
-      return;
-    }
-    if (isIos()) {
-      setShowIosHint(true);
-    }
+    setShowCard(true);
   };
-
-  // Hide button if neither install prompt nor iOS — desktop browsers without
-  // beforeinstallprompt support.
-  if (!deferredPrompt && !isIos()) return null;
 
   return (
     <>
@@ -195,29 +308,7 @@ export function InstallAppMenuButton({ onClick }: { onClick?: () => void }) {
         </svg>
         <span>Install App</span>
       </button>
-      {showIosHint && (
-        <div className="install-overlay" onClick={() => setShowIosHint(false)}>
-          <div className="install-card" onClick={(e) => e.stopPropagation()}>
-            <button className="install-close" onClick={() => setShowIosHint(false)}>×</button>
-            <h2 className="install-title">Add to Home Screen</h2>
-            <div className="install-ios-steps">
-              <div className="ios-step">
-                <span className="ios-step-num">1</span>
-                <span>Tap the <strong>Share</strong> button in Safari</span>
-              </div>
-              <div className="ios-step">
-                <span className="ios-step-num">2</span>
-                <span>Scroll down and tap <strong>Add to Home Screen</strong></span>
-              </div>
-              <div className="ios-step">
-                <span className="ios-step-num">3</span>
-                <span>Tap <strong>Add</strong> to confirm</span>
-              </div>
-            </div>
-            <button className="install-later" onClick={() => setShowIosHint(false)}>Got it</button>
-          </div>
-        </div>
-      )}
+      {showCard && <InstallCard onClose={() => setShowCard(false)} showLater={false} />}
     </>
   );
 }
