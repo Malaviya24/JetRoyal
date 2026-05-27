@@ -5,6 +5,7 @@ import { config } from "../config";
 import logo from "../assets/images/aviator-logo.png";
 import PageShell from "../components/PageShell";
 import { Icons } from "../components/Icons";
+import { queueInstallPrompt } from "../components/InstallPrompt";
 import "../components/page-shell.scss";
 
 export default function Register() {
@@ -58,6 +59,7 @@ export default function Register() {
       if (data.success) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
+        queueInstallPrompt();
         toast.success("Account created. Welcome aboard!");
         setTimeout(() => { window.location.href = "/"; }, 500);
       } else {

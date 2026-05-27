@@ -9,6 +9,22 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const STORAGE_KEY = "jr_install_seen";
+// Set this flag after a successful login/register to trigger the popup
+// on the next page load (just once, ever).
+const PENDING_KEY = "jr_install_pending";
+
+/**
+ * Call this from your login/register success handlers. Marks the popup
+ * as ready to show on the next render — but only if the user has never
+ * seen it before. After the popup is shown, both keys are normalized so
+ * the user never sees it again.
+ */
+export function queueInstallPrompt() {
+  try {
+    if (localStorage.getItem(STORAGE_KEY) === "1") return; // already seen forever
+    localStorage.setItem(PENDING_KEY, "1");
+  } catch (e) {}
+}
 
 type Browser =
   | "chrome"
@@ -247,18 +263,25 @@ function InstallCard({ onClose, showLater = true }: CardProps) {
 }
 
 // ============================================================
-// Auto popup on first visit
+// Auto popup — only shows once after login/register, ever.
+// Skipped on admin panel and once already seen.
 // ============================================================
 export function InstallAppPopup() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    // Never show inside the admin panel
+    if (window.location.pathname.startsWith("/jr-control-panel")) return;
     if (isStandalone()) return; // already installed
+
+    let pending = false;
     let alreadySeen = false;
     try {
       alreadySeen = localStorage.getItem(STORAGE_KEY) === "1";
+      pending = localStorage.getItem(PENDING_KEY) === "1";
     } catch (e) {}
-    if (alreadySeen) return;
+
+    if (alreadySeen || !pending) return;
 
     // Show after a short delay so the page renders first.
     const t = window.setTimeout(() => setOpen(true), 1500);
@@ -266,7 +289,10 @@ export function InstallAppPopup() {
   }, []);
 
   const dismiss = () => {
-    try { localStorage.setItem(STORAGE_KEY, "1"); } catch (e) {}
+    try {
+      localStorage.setItem(STORAGE_KEY, "1");
+      localStorage.removeItem(PENDING_KEY);
+    } catch (e) {}
     setOpen(false);
   };
 

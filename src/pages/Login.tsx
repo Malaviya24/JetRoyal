@@ -5,6 +5,7 @@ import { config } from "../config";
 import logo from "../assets/images/aviator-logo.png";
 import PageShell from "../components/PageShell";
 import { Icons } from "../components/Icons";
+import { queueInstallPrompt } from "../components/InstallPrompt";
 import "../components/page-shell.scss";
 
 export default function Login() {
@@ -29,6 +30,7 @@ export default function Login() {
       if (data.success) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
+        queueInstallPrompt();
         toast.success("Welcome back!");
         setTimeout(() => { window.location.href = "/"; }, 400);
       } else {
