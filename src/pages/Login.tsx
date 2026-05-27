@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { config } from "../config";
-import logo from "../assets/images/jetroyal-logo.svg";
+import logo from "../assets/images/aviator-logo.png";
 import PageShell from "../components/PageShell";
 import { Icons } from "../components/Icons";
 import "../components/page-shell.scss";
@@ -42,13 +42,13 @@ export default function Login() {
 
   return (
     <PageShell
-      title="Sign in to JetRoyal"
+      title="Sign in to Aviator"
       subtitle="Welcome back. Log in to continue playing."
       icon={<Icons.User size={20} />}
       back={() => { window.location.href = "/"; }}
     >
       <div className="ps-auth">
-        <img src={logo} alt="JetRoyal" className="ps-auth-logo" />
+        <img src={logo} alt="Aviator" className="ps-auth-logo" />
       </div>
 
       <form className="ps-form" onSubmit={handleSubmit}>

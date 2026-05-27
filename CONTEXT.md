@@ -1,4 +1,4 @@
-i# JetRoyal Aviator — Full Project Context
+i# Aviator — Full Project Context
 
 ## Overview
 A real-time multiplayer crash betting game (Aviator-style) with Unity WebGL plane animation. Players bet before each round, watch a multiplier climb, and must cash out before the plane "flies away" (crashes). Built with React frontend + Node.js backend + Socket.IO for real-time communication + SQLite (sql.js) for persistent storage.
@@ -30,7 +30,7 @@ aviator-crash/
 │   ├── unity/              # Unity WebGL build (AirCrash.loader.js, .wasm, .data)
 │   ├── sounds/             # Game sounds (Background Music.mp3, Plane start sound.mp3, Plane Crash Sound.mp3, ka-ching.mp3)
 │   ├── avatars/            # User avatar images (av-3.png through av-45.png)
-│   ├── jetroyal-logo.svg   # JR monogram logo (used as favicon)
+│   ├── aviator-logo.png    # 512px brand logo (used as favicon, install icon, auth pages)
 │   └── index.html          # Entry HTML with Unity error suppression script
 ├── src/
 │   ├── index.tsx           # App entry — routing logic (game stays mounted, auth pages separate)

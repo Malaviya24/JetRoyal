@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import logo from "../assets/images/jetroyal-logo.svg";
+import logo from "../assets/images/aviator-logo.png";
 import PageShell from "../components/PageShell";
 import { Icons } from "../components/Icons";
 import "../components/page-shell.scss";
@@ -21,7 +21,7 @@ export default function NotFound() {
       back={() => navigate(-1)}
     >
       <div className="ps-auth">
-        <img src={logo} alt="JetRoyal" className="ps-auth-logo" />
+        <img src={logo} alt="Aviator" className="ps-auth-logo" />
         <div
           style={{
             fontSize: 88,

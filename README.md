@@ -1,4 +1,4 @@
-# JetRoyal - Aviator Crash Game ✈️
+# Aviator - Crash Game ✈️
 
 A real-time multiplayer crash betting game with Unity WebGL animation, built with React + Node.js + Socket.IO + SQLite.
 

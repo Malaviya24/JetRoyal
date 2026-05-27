@@ -57,7 +57,7 @@ export default function Deposit() {
     const amt = Number(amount) || 0;
     const uri =
       `upi://pay?pa=${encodeURIComponent(upiId)}` +
-      `&pn=${encodeURIComponent("JetRoyal Aviator")}` +
+      `&pn=${encodeURIComponent("Aviator")}` +
       (amt > 0 ? `&am=${amt}` : "") +
       `&cu=INR`;
     window.location.href = uri;

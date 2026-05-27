@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
-import logo from "../assets/images/logo.svg";
+import logo from "../assets/images/aviator-logo.png";
 import "../index.scss";
 import Context from "../context";
 import { InstallAppMenuButton } from "./InstallPrompt";

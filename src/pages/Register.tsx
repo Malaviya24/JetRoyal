@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { config } from "../config";
-import logo from "../assets/images/jetroyal-logo.svg";
+import logo from "../assets/images/aviator-logo.png";
 import PageShell from "../components/PageShell";
 import { Icons } from "../components/Icons";
 import "../components/page-shell.scss";
@@ -72,12 +72,12 @@ export default function Register() {
   return (
     <PageShell
       title="Create your account"
-      subtitle="Join JetRoyal Aviator and start playing in seconds."
+      subtitle="Join Aviator and start playing in seconds."
       icon={<Icons.User size={20} />}
       back={() => { window.location.href = "/"; }}
     >
       <div className="ps-auth">
-        <img src={logo} alt="JetRoyal" className="ps-auth-logo" />
+        <img src={logo} alt="Aviator" className="ps-auth-logo" />
       </div>
 
       {refLocked && refValidated && (

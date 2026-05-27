@@ -122,7 +122,7 @@ function getInstructions(browser: Browser): { title: string; steps: Step[] } {
         title: "Install in Brave",
         steps: [
           { num: 1, text: <>Click the <strong>≡ menu</strong> in the top right of Brave</> },
-          { num: 2, text: <>Choose <strong>Install JetRoyal Aviator…</strong></> },
+          { num: 2, text: <>Choose <strong>Install Aviator…</strong></> },
           { num: 3, text: <>If you don't see it, open <code>brave://flags</code> and enable <strong>"Desktop PWAs"</strong></> },
         ],
       };
@@ -215,7 +215,7 @@ function InstallCard({ onClose, showLater = true }: CardProps) {
           </svg>
         </div>
 
-        <h2 className="install-title">Install JetRoyal Aviator</h2>
+        <h2 className="install-title">Install Aviator</h2>
         <p className="install-text">
           Add the app to your home screen for a faster, full-screen experience.
         </p>

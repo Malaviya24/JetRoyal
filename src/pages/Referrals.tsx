@@ -62,10 +62,10 @@ export default function Referrals() {
 
   const share = async () => {
     if (!data) return;
-    const text = `Join JetRoyal Aviator and we both get ₹${data.bonusAmount} bonus! Use code ${data.referralCode} or this link:\n${referralLink}`;
+    const text = `Join Aviator and we both get ₹${data.bonusAmount} bonus! Use code ${data.referralCode} or this link:\n${referralLink}`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: "JetRoyal Referral", text, url: referralLink });
+        await navigator.share({ title: "Aviator Referral", text, url: referralLink });
         return;
       } catch (e) {}
     }
