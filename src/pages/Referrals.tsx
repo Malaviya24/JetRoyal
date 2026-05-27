@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { config } from "../config";
 import { authFetch } from "../utils/authFetch";
-import "./auth.scss";
-import "./referrals.scss";
+import PageShell from "../components/PageShell";
+import { Icons } from "../components/Icons";
+import "../components/page-shell.scss";
 
 interface ReferralRow {
   userId: number;
@@ -27,31 +28,28 @@ interface ReferralData {
 
 export default function Referrals() {
   const navigate = useNavigate();
+  const token = localStorage.getItem("token");
+
   const [data, setData] = useState<ReferralData | null>(null);
   const [loading, setLoading] = useState(true);
-  const token = localStorage.getItem("token");
 
   useEffect(() => {
     if (!token) { navigate("/login"); return; }
-    fetchReferrals();
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await authFetch(`${config.api}/user/referrals`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = await res.json();
+        if (json.success) setData(json);
+      } catch (e) {}
+      setLoading(false);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchReferrals = async () => {
-    setLoading(true);
-    try {
-      const res = await authFetch(`${config.api}/user/referrals`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json();
-      if (json.success) setData(json);
-    } catch (e) {}
-    setLoading(false);
-  };
-
-  const referralLink = data
-    ? `${window.location.origin}/register?ref=${data.referralCode}`
-    : "";
+  const referralLink = data ? `${window.location.origin}/register?ref=${data.referralCode}` : "";
 
   const copy = async (text: string, label: string) => {
     try {
@@ -64,95 +62,110 @@ export default function Referrals() {
 
   const share = async () => {
     if (!data) return;
-    const text = `Join JetRoyal Aviator and we both get ₹${data.bonusAmount} bonus! Use my code ${data.referralCode} or sign up with this link:\n${referralLink}`;
+    const text = `Join JetRoyal Aviator and we both get ₹${data.bonusAmount} bonus! Use code ${data.referralCode} or this link:\n${referralLink}`;
     if (navigator.share) {
       try {
         await navigator.share({ title: "JetRoyal Referral", text, url: referralLink });
         return;
-      } catch (e) {
-        // fall through to clipboard
-      }
+      } catch (e) {}
     }
     copy(text, "Invite message");
   };
 
   return (
-    <div className="auth-page" style={{ alignItems: "flex-start", paddingTop: 50 }}>
-      <button className="page-back-btn" onClick={() => navigate("/account")}>← Back</button>
-      <div className="auth-container referrals-container">
-        <div className="auth-header">
-          <h1>Refer & Earn</h1>
-          <p>
-            {data
-              ? `Get ₹${data.bonusAmount} when a friend signs up with your code and deposits ₹${data.minDeposit} or more. Both of you get the bonus.`
-              : "Loading..."}
-          </p>
-        </div>
-
-        {loading || !data ? (
-          <p className="ref-empty">Loading referral details...</p>
-        ) : (
-          <>
-            <div className="ref-stats">
-              <div className="ref-stat">
-                <span className="ref-stat-val">{data.totalReferrals}</span>
-                <span className="ref-stat-label">Total Referrals</span>
-              </div>
-              <div className="ref-stat green">
-                <span className="ref-stat-val">{data.paidReferrals}</span>
-                <span className="ref-stat-label">Paid Out</span>
-              </div>
-              <div className="ref-stat gold">
-                <span className="ref-stat-val">₹{data.totalEarnings.toLocaleString()}</span>
-                <span className="ref-stat-label">Total Earnings</span>
-              </div>
+    <PageShell
+      title="Refer & Earn"
+      subtitle={
+        data
+          ? `Get ₹${data.bonusAmount} when a friend signs up with your code and deposits ₹${data.minDeposit}+. Both of you receive the bonus.`
+          : "Loading referral details..."
+      }
+      icon={<Icons.Gift size={20} />}
+      back="/account"
+      wide
+    >
+      {loading || !data ? (
+        <div className="ps-loading">Loading referral details...</div>
+      ) : (
+        <>
+          <div className="ps-stats">
+            <div className="ps-stat">
+              <span className="v">{data.totalReferrals}</span>
+              <span className="l">Total Referrals</span>
             </div>
-
-            <div className="ref-block">
-              <label>Your Referral Code</label>
-              <div className="ref-row">
-                <input value={data.referralCode} readOnly />
-                <button onClick={() => copy(data.referralCode, "Code")}>Copy</button>
-              </div>
+            <div className="ps-stat green">
+              <span className="v">{data.paidReferrals}</span>
+              <span className="l">Bonus Paid</span>
             </div>
-
-            <div className="ref-block">
-              <label>Your Referral Link</label>
-              <div className="ref-row">
-                <input value={referralLink} readOnly />
-                <button onClick={() => copy(referralLink, "Link")}>Copy</button>
-              </div>
-              <button className="share-btn" onClick={share}>Share Invite</button>
+            <div className="ps-stat gold">
+              <span className="v">₹{data.totalEarnings.toLocaleString()}</span>
+              <span className="l">Total Earnings</span>
             </div>
+          </div>
 
-            <div className="ref-block">
-              <label>People you've referred</label>
-              {data.referrals.length === 0 ? (
-                <p className="ref-empty">No referrals yet. Share your link to get started.</p>
-              ) : (
-                <div className="ref-list">
+          <div className="ps-field">
+            <label>Your Referral Code</label>
+            <div className="ps-row-flex">
+              <input value={data.referralCode} readOnly className="ps-grow" style={{ fontFamily: "monospace", letterSpacing: "1px" }} />
+              <button type="button" className="ps-btn ps-sm" onClick={() => copy(data.referralCode, "Code")}>
+                <Icons.Copy size={14} /> Copy
+              </button>
+            </div>
+          </div>
+
+          <div className="ps-field">
+            <label>Your Referral Link</label>
+            <div className="ps-row-flex">
+              <input value={referralLink} readOnly className="ps-grow" style={{ fontSize: 12 }} />
+              <button type="button" className="ps-btn ps-sm" onClick={() => copy(referralLink, "Link")}>
+                <Icons.Copy size={14} /> Copy
+              </button>
+            </div>
+            <button type="button" className="ps-btn ps-ghost ps-block" onClick={share} style={{ marginTop: 10 }}>
+              <Icons.Share size={14} /> Share Invite
+            </button>
+          </div>
+
+          <div className="ps-divider" />
+
+          <div style={{ marginBottom: 10 }}>
+            <span className="ps-text-muted" style={{ textTransform: "uppercase", letterSpacing: 0.5, fontSize: 11, fontWeight: 600 }}>
+              People you've referred
+            </span>
+          </div>
+
+          {data.referrals.length === 0 ? (
+            <div className="ps-empty">No referrals yet. Share your link to get started.</div>
+          ) : (
+            <div className="ps-table-wrap">
+              <table className="ps-table">
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>Joined</th>
+                    <th style={{ textAlign: "right" }}>Deposited</th>
+                    <th style={{ textAlign: "center" }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {data.referrals.map((r) => (
-                    <div key={r.userId} className={`ref-item ${r.bonusPaid ? "paid" : "pending"}`}>
-                      <div className="ref-item-left">
-                        <span className="ref-name">{r.username}</span>
-                        <span className="ref-date">
-                          Joined {new Date(r.createdAt).toLocaleDateString()}
+                    <tr key={r.userId}>
+                      <td>{r.username}</td>
+                      <td className="ps-text-muted">{new Date(r.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" })}</td>
+                      <td style={{ textAlign: "right" }}>₹{Number(r.totalDeposited).toLocaleString()}</td>
+                      <td style={{ textAlign: "center" }}>
+                        <span className={`ps-pill ${r.bonusPaid ? "paid" : "pending"}`}>
+                          {r.bonusPaid ? `+₹${data.bonusAmount}` : "Awaiting deposit"}
                         </span>
-                      </div>
-                      <div className="ref-item-right">
-                        <span className="ref-deposit">₹{Number(r.totalDeposited).toLocaleString()} deposited</span>
-                        <span className={`ref-status ${r.bonusPaid ? "paid" : "pending"}`}>
-                          {r.bonusPaid ? `Bonus paid +₹${data.bonusAmount}` : "Awaiting first deposit"}
-                        </span>
-                      </div>
-                    </div>
+                      </td>
+                    </tr>
                   ))}
-                </div>
-              )}
+                </tbody>
+              </table>
             </div>
-          </>
-        )}
-      </div>
-    </div>
+          )}
+        </>
+      )}
+    </PageShell>
   );
 }

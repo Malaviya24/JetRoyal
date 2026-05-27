@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { config } from "../config";
 import logo from "../assets/images/jetroyal-logo.svg";
-import "./auth.scss";
+import PageShell from "../components/PageShell";
+import { Icons } from "../components/Icons";
+import "../components/page-shell.scss";
 
 export default function Register() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-
-  // Read referral code from ?ref=XXX (or ?referral=XXX). When present,
-  // the field is locked so the user can't accidentally remove it.
   const refFromUrl = (searchParams.get("ref") || searchParams.get("referral") || "").toUpperCase().trim();
 
   const [form, setForm] = useState({
@@ -21,19 +19,16 @@ export default function Register() {
     confirmPassword: "",
     referralCode: refFromUrl,
   });
-  const [refLocked, setRefLocked] = useState(!!refFromUrl);
+  const [refLocked] = useState(!!refFromUrl);
   const [refValidated, setRefValidated] = useState<{ valid: boolean; name?: string } | null>(null);
+  const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Validate the referral code once when prefilled from the URL
   useEffect(() => {
     if (!refFromUrl) return;
     fetch(`${config.api}/referral/validate/${encodeURIComponent(refFromUrl)}`)
       .then((r) => r.json())
-      .then((d) => {
-        if (d && d.valid) setRefValidated({ valid: true, name: d.referrerName });
-        else setRefValidated({ valid: false });
-      })
+      .then((d) => setRefValidated(d && d.valid ? { valid: true, name: d.referrerName } : { valid: false }))
       .catch(() => {});
   }, [refFromUrl]);
 
@@ -48,12 +43,10 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (form.password !== form.confirmPassword) {
       toast.error("Passwords do not match");
       return;
     }
-
     setLoading(true);
     try {
       const res = await fetch(`${config.api}/register`, {
@@ -62,12 +55,10 @@ export default function Register() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-
       if (data.success) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
-        toast.success("Registration successful!");
-        // Full reload to ensure Unity initializes fresh
+        toast.success("Account created. Welcome aboard!");
         setTimeout(() => { window.location.href = "/"; }, 500);
       } else {
         toast.error(data.error || "Registration failed");
@@ -79,100 +70,138 @@ export default function Register() {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-container">
-        <div className="auth-header">
-          <img src={logo} alt="JetRoyal" className="auth-logo-img" />
-          <h1>Create Account</h1>
-          <p>Register to start playing</p>
-          {refLocked && refValidated && (
-            <p style={{ marginTop: 6, color: refValidated.valid ? "#28a909" : "#e63946", fontWeight: 600 }}>
+    <PageShell
+      title="Create your account"
+      subtitle="Join JetRoyal Aviator and start playing in seconds."
+      icon={<Icons.User size={20} />}
+      back={() => { window.location.href = "/"; }}
+    >
+      <div className="ps-auth">
+        <img src={logo} alt="JetRoyal" className="ps-auth-logo" />
+      </div>
+
+      {refLocked && refValidated && (
+        <div className={`ps-panel ${refValidated.valid ? "" : "danger"}`}>
+          <div className="ps-panel-icon">
+            {refValidated.valid ? <Icons.Check size={16} /> : <Icons.AlertTriangle size={16} />}
+          </div>
+          <div className="ps-panel-body">
+            <div className="ps-panel-title">
+              {refValidated.valid ? `Referred by ${refValidated.name}` : "Invalid referral link"}
+            </div>
+            <div className="ps-panel-text">
               {refValidated.valid
-                ? `Referred by ${refValidated.name}`
-                : "Invalid referral link"}
-            </p>
-          )}
+                ? "You'll both earn a bonus on the first qualifying deposit."
+                : "The code in this link doesn't exist. You can still register without one."}
+            </div>
+          </div>
         </div>
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label>Username</label>
+      )}
+
+      <form className="ps-form" onSubmit={handleSubmit}>
+        <div className="ps-field">
+          <label>Username</label>
+          <input
+            type="text"
+            name="username"
+            placeholder="Choose a username"
+            value={form.username}
+            onChange={handleChange}
+            required
+            minLength={3}
+            autoComplete="username"
+          />
+        </div>
+
+        <div className="ps-field">
+          <label>Full Name</label>
+          <input
+            type="text"
+            name="name"
+            placeholder="Enter your full name"
+            value={form.name}
+            onChange={handleChange}
+            required
+            autoComplete="name"
+          />
+        </div>
+
+        <div className="ps-field">
+          <label>Phone Number</label>
+          <input
+            type="tel"
+            name="phone"
+            placeholder="10-digit phone number"
+            value={form.phone}
+            onChange={handleChange}
+            required
+            minLength={10}
+            autoComplete="tel"
+          />
+        </div>
+
+        <div className="ps-field">
+          <label>Password</label>
+          <div className="ps-row-flex">
             <input
-              type="text"
-              name="username"
-              placeholder="Choose a username"
-              value={form.username}
-              onChange={handleChange}
-              required
-              minLength={3}
-            />
-          </div>
-          <div className="form-group">
-            <label>Full Name</label>
-            <input
-              type="text"
-              name="name"
-              placeholder="Enter your full name"
-              value={form.name}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Phone Number</label>
-            <input
-              type="tel"
-              name="phone"
-              placeholder="Enter phone number"
-              value={form.phone}
-              onChange={handleChange}
-              required
-              minLength={10}
-            />
-          </div>
-          <div className="form-group">
-            <label>Password</label>
-            <input
-              type="password"
+              type={showPass ? "text" : "password"}
               name="password"
-              placeholder="Create password (min 6 chars)"
+              placeholder="Minimum 6 characters"
               value={form.password}
               onChange={handleChange}
               required
               minLength={6}
+              autoComplete="new-password"
+              className="ps-grow"
             />
+            <button
+              type="button"
+              className="ps-btn ps-ghost ps-sm"
+              onClick={() => setShowPass(!showPass)}
+              style={{ padding: "10px 12px" }}
+              aria-label={showPass ? "Hide password" : "Show password"}
+            >
+              {showPass ? <Icons.EyeOff size={16} /> : <Icons.Eye size={16} />}
+            </button>
           </div>
-          <div className="form-group">
-            <label>Confirm Password</label>
-            <input
-              type="password"
-              name="confirmPassword"
-              placeholder="Confirm your password"
-              value={form.confirmPassword}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Referral Code <span style={{ opacity: 0.6, fontWeight: 400 }}>(optional)</span></label>
-            <input
-              type="text"
-              name="referralCode"
-              placeholder="Enter referral code"
-              value={form.referralCode}
-              onChange={handleChange}
-              readOnly={refLocked}
-              style={refLocked ? { background: "#1a1a1a", opacity: 0.85, cursor: "not-allowed" } : undefined}
-              maxLength={12}
-            />
-          </div>
-          <button type="submit" className="auth-btn" disabled={loading}>
-            {loading ? "Creating account..." : "REGISTER"}
-          </button>
-        </form>
-        <div className="auth-footer">
-          <p>Already have an account? <Link to="/login">Login</Link></p>
         </div>
-      </div>
-    </div>
+
+        <div className="ps-field">
+          <label>Confirm Password</label>
+          <input
+            type={showPass ? "text" : "password"}
+            name="confirmPassword"
+            placeholder="Re-enter your password"
+            value={form.confirmPassword}
+            onChange={handleChange}
+            required
+            autoComplete="new-password"
+          />
+        </div>
+
+        <div className="ps-field">
+          <label>Referral Code <span style={{ opacity: 0.5, fontWeight: 400 }}>(optional)</span></label>
+          <input
+            type="text"
+            name="referralCode"
+            placeholder="Enter referral code"
+            value={form.referralCode}
+            onChange={handleChange}
+            readOnly={refLocked}
+            maxLength={12}
+          />
+        </div>
+
+        <button type="submit" className="ps-btn ps-block" disabled={loading}>
+          {loading ? "Creating account..." : "Register"}
+        </button>
+      </form>
+
+      <div className="ps-divider" />
+
+      <p className="ps-text-muted" style={{ textAlign: "center" }}>
+        Already have an account? <Link to="/login" className="ps-text-gold" style={{ textDecoration: "none" }}>Sign in</Link>
+      </p>
+    </PageShell>
   );
 }

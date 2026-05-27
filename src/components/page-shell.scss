@@ -1,0 +1,557 @@
+// =====================================================
+// Shared design system for all user-facing pages
+// =====================================================
+// One source of truth for colors / spacing / typography.
+// Components below the .ps-page scope follow the same rules.
+// =====================================================
+
+$jr-bg:        #0c0d0f;
+$jr-surface:   #1b1c1d;
+$jr-surface-2: #141516;
+$jr-border:    #2a2b2e;
+$jr-text:      #ffffff;
+$jr-muted:     #9ea0a3;
+$jr-faint:     #6b6e72;
+$jr-gold:      #e69308;
+$jr-gold-2:    #ffb547;
+$jr-success:   #28a909;
+$jr-danger:    #e63946;
+
+.ps-page {
+  min-height: 100vh;
+  width: 100%;
+  background:
+    radial-gradient(ellipse at top, rgba(230, 147, 8, 0.05) 0%, transparent 55%),
+    radial-gradient(ellipse at bottom, rgba(230, 57, 70, 0.04) 0%, transparent 60%),
+    $jr-bg;
+  padding: 24px 16px 48px;
+  color: $jr-text;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+.ps-shell {
+  width: 100%;
+  max-width: 540px;
+  margin: 0 auto;
+
+  &.ps-wide { max-width: 960px; }
+}
+
+// ---------- Top bar ----------
+.ps-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.ps-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid $jr-border;
+  color: $jr-muted;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    color: $jr-gold;
+    border-color: $jr-gold;
+    background: rgba(230, 147, 8, 0.06);
+  }
+}
+
+.ps-right { display: flex; align-items: center; gap: 8px; }
+
+// ---------- Card frame ----------
+.ps-card {
+  background: $jr-surface;
+  border: 1px solid $jr-border;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.ps-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 22px 18px;
+  border-bottom: 1px solid $jr-border;
+  background: linear-gradient(180deg, rgba(230, 147, 8, 0.06), transparent 100%);
+}
+
+.ps-icon {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: rgba(230, 147, 8, 0.12);
+  border: 1px solid rgba(230, 147, 8, 0.3);
+  color: $jr-gold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ps-titles { display: flex; flex-direction: column; gap: 2px; }
+
+.ps-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: $jr-text;
+}
+
+.ps-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: $jr-muted;
+  line-height: 1.4;
+}
+
+.ps-body {
+  padding: 22px;
+}
+
+// ---------- Form primitives ----------
+.ps-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ps-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    font-size: 12px;
+    color: $jr-muted;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  input,
+  textarea {
+    background: $jr-surface-2;
+    border: 1px solid $jr-border;
+    border-radius: 10px;
+    padding: 11px 14px;
+    color: $jr-text;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s, background 0.15s;
+
+    &::placeholder { color: $jr-faint; }
+
+    &:focus {
+      border-color: $jr-gold;
+      background: #18191b;
+    }
+
+    &:read-only,
+    &[readonly] {
+      background: #101112;
+      color: $jr-muted;
+      cursor: not-allowed;
+    }
+  }
+
+  &.ps-row {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+
+    input { flex: 1; }
+  }
+}
+
+.ps-helper {
+  font-size: 12px;
+  color: $jr-faint;
+  margin-top: 2px;
+
+  &.ok    { color: $jr-success; }
+  &.warn  { color: $jr-gold; }
+  &.error { color: $jr-danger; }
+}
+
+// ---------- Buttons ----------
+.ps-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-transform: uppercase;
+  background: $jr-gold;
+  color: #0c0d0f;
+
+  &:hover { background: $jr-gold-2; transform: translateY(-1px); }
+  &:active { transform: translateY(0); }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  &.ps-block { width: 100%; }
+
+  &.ps-ghost {
+    background: transparent;
+    border: 1px solid $jr-border;
+    color: $jr-text;
+
+    &:hover {
+      border-color: $jr-gold;
+      color: $jr-gold;
+      background: rgba(230, 147, 8, 0.06);
+    }
+  }
+
+  &.ps-danger {
+    background: $jr-danger;
+    color: #fff;
+    &:hover { background: #ff4f5f; }
+  }
+
+  &.ps-success {
+    background: $jr-success;
+    color: #fff;
+    &:hover { background: #2ec010; }
+  }
+
+  &.ps-sm { padding: 8px 14px; font-size: 12px; }
+}
+
+// ---------- Stat cards ----------
+.ps-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.ps-stat {
+  background: $jr-surface-2;
+  border: 1px solid $jr-border;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  .v {
+    font-size: 20px;
+    font-weight: 700;
+    color: $jr-text;
+  }
+  .l {
+    font-size: 11px;
+    color: $jr-muted;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+
+  &.green   { border-color: rgba(40, 169, 9, 0.4);  .v { color: $jr-success; } }
+  &.gold    { border-color: rgba(230, 147, 8, 0.5); .v { color: $jr-gold; } }
+  &.danger  { border-color: rgba(230, 57, 70, 0.5); .v { color: $jr-danger; } }
+}
+
+// ---------- Info / warning panels ----------
+.ps-panel {
+  background: $jr-surface-2;
+  border: 1px solid $jr-border;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+
+  .ps-panel-icon {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    background: rgba(230, 147, 8, 0.12);
+    color: $jr-gold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ps-panel-body { flex: 1; min-width: 0; }
+
+  .ps-panel-title {
+    font-size: 13px;
+    color: $jr-text;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .ps-panel-text {
+    font-size: 13px;
+    color: $jr-muted;
+    line-height: 1.5;
+  }
+
+  &.warn {
+    border-color: rgba(230, 147, 8, 0.4);
+    background: rgba(230, 147, 8, 0.06);
+
+    .ps-panel-icon {
+      background: rgba(230, 147, 8, 0.2);
+      color: $jr-gold;
+    }
+  }
+
+  &.danger {
+    border-color: rgba(230, 57, 70, 0.4);
+    background: rgba(230, 57, 70, 0.06);
+
+    .ps-panel-icon {
+      background: rgba(230, 57, 70, 0.2);
+      color: $jr-danger;
+    }
+  }
+}
+
+// ---------- Menu list (Account page) ----------
+.ps-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ps-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  background: $jr-surface-2;
+  border: 1px solid $jr-border;
+  border-radius: 12px;
+  color: $jr-text;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: rgba(230, 147, 8, 0.5);
+    background: #1b1c1d;
+    transform: translateY(-1px);
+  }
+
+  .mi-icon {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 9px;
+    background: rgba(230, 147, 8, 0.10);
+    color: $jr-gold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mi-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .mi-title  { font-size: 14px; font-weight: 600; color: $jr-text; }
+  .mi-sub    { font-size: 12px; color: $jr-muted; }
+
+  .mi-arrow  { color: $jr-faint; }
+
+  &.danger {
+    .mi-icon { background: rgba(230, 57, 70, 0.10); color: $jr-danger; }
+    .mi-title { color: $jr-danger; }
+    &:hover { border-color: rgba(230, 57, 70, 0.5); }
+  }
+}
+
+// ---------- Quick chips (e.g. amount presets) ----------
+.ps-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ps-chip {
+  flex: 1;
+  min-width: 70px;
+  padding: 8px 4px;
+  background: $jr-surface-2;
+  border: 1px solid $jr-border;
+  border-radius: 8px;
+  color: $jr-muted;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover, &.active {
+    border-color: $jr-gold;
+    color: $jr-gold;
+    background: rgba(230, 147, 8, 0.06);
+  }
+}
+
+// ---------- Tabs ----------
+.ps-tabs {
+  display: flex;
+  gap: 6px;
+  background: $jr-surface-2;
+  border: 1px solid $jr-border;
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 16px;
+}
+
+.ps-tab {
+  flex: 1;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  color: $jr-muted;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover { color: $jr-text; }
+
+  &.active {
+    background: $jr-gold;
+    color: #0c0d0f;
+  }
+}
+
+// ---------- Table ----------
+.ps-table-wrap {
+  border: 1px solid $jr-border;
+  border-radius: 12px;
+  background: $jr-surface-2;
+  overflow-x: auto;
+}
+
+.ps-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  thead tr {
+    background: #18191b;
+
+    th {
+      padding: 11px 14px;
+      text-align: left;
+      color: $jr-muted;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      border-bottom: 1px solid $jr-border;
+    }
+  }
+
+  tbody tr {
+    border-bottom: 1px solid $jr-border;
+
+    &:last-child { border-bottom: none; }
+    &:hover { background: rgba(230, 147, 8, 0.04); }
+
+    td {
+      padding: 11px 14px;
+      color: #ddd;
+      white-space: nowrap;
+    }
+  }
+
+  .ps-pos { color: $jr-success; font-weight: 600; }
+  .ps-neg { color: $jr-danger;  font-weight: 600; }
+}
+
+// ---------- Status pill ----------
+.ps-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+
+  &.pending  { background: rgba(230, 147, 8, 0.12); color: $jr-gold;    border: 1px solid rgba(230, 147, 8, 0.4); }
+  &.approved { background: rgba(40, 169, 9, 0.12);  color: $jr-success; border: 1px solid rgba(40, 169, 9, 0.4); }
+  &.rejected { background: rgba(230, 57, 70, 0.12); color: $jr-danger;  border: 1px solid rgba(230, 57, 70, 0.4); }
+  &.paid     { background: rgba(40, 169, 9, 0.12);  color: $jr-success; border: 1px solid rgba(40, 169, 9, 0.4); }
+}
+
+// ---------- Empty / loading ----------
+.ps-empty,
+.ps-loading {
+  text-align: center;
+  padding: 36px 16px;
+  color: $jr-muted;
+  font-size: 13px;
+}
+
+// ---------- Section divider ----------
+.ps-divider {
+  height: 1px;
+  background: $jr-border;
+  margin: 16px 0;
+}
+
+// ---------- Auth-style card (for Login / Register / NotFound) ----------
+.ps-auth {
+  text-align: center;
+  padding: 12px 0;
+
+  .ps-auth-logo {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 10px;
+    display: block;
+  }
+}
+
+// ---------- Tiny utility ----------
+.ps-row-flex { display: flex; gap: 8px; align-items: center; }
+.ps-grow { flex: 1; }
+.ps-text-muted { color: $jr-muted; font-size: 13px; }
+.ps-text-gold  { color: $jr-gold; font-weight: 600; }
+.ps-text-pos   { color: $jr-success; }
+.ps-text-neg   { color: $jr-danger; }
+
+// ---------- Mobile tweaks ----------
+@media (max-width: 480px) {
+  .ps-page { padding: 16px 10px 36px; }
+  .ps-header { padding: 18px 16px 14px; }
+  .ps-body { padding: 18px 16px; }
+}

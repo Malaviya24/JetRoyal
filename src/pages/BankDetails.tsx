@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { config } from "../config";
 import { authFetch } from "../utils/authFetch";
-import "./auth.scss";
+import PageShell from "../components/PageShell";
+import { Icons } from "../components/Icons";
+import "../components/page-shell.scss";
 
 export default function BankDetails() {
   const navigate = useNavigate();
+  const token = localStorage.getItem("token");
+
   const [form, setForm] = useState({
     accountHolder: "",
     accountNumber: "",
@@ -16,14 +20,7 @@ export default function BankDetails() {
   });
   const [loading, setLoading] = useState(false);
 
-  const token = localStorage.getItem("token");
-
-  useEffect(() => {
-    if (!token) { navigate("/login"); return; }
-    fetchBankDetails();
-  }, []);
-
-  const fetchBankDetails = async () => {
+  const fetchBankDetails = useCallback(async () => {
     try {
       const res = await authFetch(`${config.api}/user/bank-details`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -39,16 +36,21 @@ export default function BankDetails() {
         });
       }
     } catch (e) {}
-  };
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) { navigate("/login"); return; }
+    fetchBankDetails();
+  }, [token, navigate, fetchBankDetails]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: name === "ifscCode" ? value.toUpperCase() : value });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) { navigate("/login"); return; }
-
     setLoading(true);
     try {
       const res = await authFetch(`${config.api}/user/bank-details`, {
@@ -57,12 +59,8 @@ export default function BankDetails() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-
-      if (data.success) {
-        toast.success(data.message);
-      } else {
-        toast.error(data.error || "Failed to save bank details");
-      }
+      if (data.success) toast.success(data.message);
+      else toast.error(data.error || "Failed to save bank details");
     } catch (err) {
       toast.error("Server error");
     }
@@ -70,78 +68,78 @@ export default function BankDetails() {
   };
 
   return (
-    <div className="auth-page">
-      <button className="page-back-btn" onClick={() => navigate("/game")}>← Back to Game</button>
-      <div className="auth-container dashboard-container">
-        <div className="auth-header">
-          <h1>🏦 Bank Details</h1>
-          <p>Add your withdrawal bank details</p>
+    <PageShell
+      title="Bank Details"
+      subtitle="Used for processing withdrawals to your account."
+      icon={<Icons.Bank size={20} />}
+      back="/account"
+    >
+      <form className="ps-form" onSubmit={handleSubmit}>
+        <div className="ps-field">
+          <label>Account Holder Name</label>
+          <input
+            type="text"
+            name="accountHolder"
+            placeholder="Full name as on bank account"
+            value={form.accountHolder}
+            onChange={handleChange}
+            required
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label>Account Holder Name</label>
-            <input
-              type="text"
-              name="accountHolder"
-              placeholder="Enter account holder name"
-              value={form.accountHolder}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Account Number</label>
-            <input
-              type="text"
-              name="accountNumber"
-              placeholder="Enter account number"
-              value={form.accountNumber}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>IFSC Code</label>
-            <input
-              type="text"
-              name="ifscCode"
-              placeholder="Enter IFSC code"
-              value={form.ifscCode}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Bank Name</label>
-            <input
-              type="text"
-              name="bankName"
-              placeholder="Enter bank name"
-              value={form.bankName}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>UPI ID (Optional)</label>
-            <input
-              type="text"
-              name="upiId"
-              placeholder="Enter UPI ID (e.g. name@upi)"
-              value={form.upiId}
-              onChange={handleChange}
-            />
-          </div>
-          <button type="submit" className="auth-btn" disabled={loading}>
-            {loading ? "Saving..." : "SAVE BANK DETAILS"}
-          </button>
-        </form>
-
-        <div className="auth-footer">
-          <button className="back-btn" onClick={() => navigate("/account")}>← Back to Account</button>
+        <div className="ps-field">
+          <label>Account Number</label>
+          <input
+            type="text"
+            name="accountNumber"
+            placeholder="Enter account number"
+            value={form.accountNumber}
+            onChange={handleChange}
+            required
+            inputMode="numeric"
+          />
         </div>
-      </div>
-    </div>
+
+        <div className="ps-field">
+          <label>IFSC Code</label>
+          <input
+            type="text"
+            name="ifscCode"
+            placeholder="e.g. HDFC0001234"
+            value={form.ifscCode}
+            onChange={handleChange}
+            required
+            maxLength={11}
+          />
+        </div>
+
+        <div className="ps-field">
+          <label>Bank Name</label>
+          <input
+            type="text"
+            name="bankName"
+            placeholder="e.g. HDFC Bank"
+            value={form.bankName}
+            onChange={handleChange}
+            required
+          />
+        </div>
+
+        <div className="ps-field">
+          <label>UPI ID <span style={{ opacity: 0.5, fontWeight: 400 }}>(optional)</span></label>
+          <input
+            type="text"
+            name="upiId"
+            placeholder="name@upi"
+            value={form.upiId}
+            onChange={handleChange}
+          />
+        </div>
+
+        <button type="submit" className="ps-btn ps-block" disabled={loading}>
+          {loading ? "Saving..." : "Save Bank Details"}
+        </button>
+      </form>
+    </PageShell>
   );
 }

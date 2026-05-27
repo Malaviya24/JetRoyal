@@ -1,13 +1,15 @@
 import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { config } from "../config";
 import logo from "../assets/images/jetroyal-logo.svg";
-import "./auth.scss";
+import PageShell from "../components/PageShell";
+import { Icons } from "../components/Icons";
+import "../components/page-shell.scss";
 
 export default function Login() {
-  const navigate = useNavigate();
   const [form, setForm] = useState({ username: "", password: "" });
+  const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -17,7 +19,6 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const res = await fetch(`${config.api}/login`, {
         method: "POST",
@@ -25,13 +26,11 @@ export default function Login() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-
       if (data.success) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
-        toast.success("Login successful!");
-        // Full reload to ensure Unity initializes fresh
-        setTimeout(() => { window.location.href = "/"; }, 500);
+        toast.success("Welcome back!");
+        setTimeout(() => { window.location.href = "/"; }, 400);
       } else {
         toast.error(data.error || "Login failed");
       }
@@ -42,44 +41,65 @@ export default function Login() {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-container">
-        <div className="auth-header">
-          <img src={logo} alt="JetRoyal" className="auth-logo-img" />
-          <h1>Welcome Back</h1>
-          <p>Login to your account to play</p>
+    <PageShell
+      title="Sign in to JetRoyal"
+      subtitle="Welcome back. Log in to continue playing."
+      icon={<Icons.User size={20} />}
+      back={() => { window.location.href = "/"; }}
+    >
+      <div className="ps-auth">
+        <img src={logo} alt="JetRoyal" className="ps-auth-logo" />
+      </div>
+
+      <form className="ps-form" onSubmit={handleSubmit}>
+        <div className="ps-field">
+          <label>Username</label>
+          <input
+            type="text"
+            name="username"
+            placeholder="Enter your username"
+            value={form.username}
+            onChange={handleChange}
+            required
+            autoComplete="username"
+          />
         </div>
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label>Username</label>
+
+        <div className="ps-field">
+          <label>Password</label>
+          <div className="ps-row-flex">
             <input
-              type="text"
-              name="username"
-              placeholder="Enter username"
-              value={form.username}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Password</label>
-            <input
-              type="password"
+              type={showPass ? "text" : "password"}
               name="password"
-              placeholder="Enter password"
+              placeholder="Enter your password"
               value={form.password}
               onChange={handleChange}
               required
+              autoComplete="current-password"
+              className="ps-grow"
             />
+            <button
+              type="button"
+              className="ps-btn ps-ghost ps-sm"
+              onClick={() => setShowPass(!showPass)}
+              aria-label={showPass ? "Hide password" : "Show password"}
+              style={{ padding: "10px 12px" }}
+            >
+              {showPass ? <Icons.EyeOff size={16} /> : <Icons.Eye size={16} />}
+            </button>
           </div>
-          <button type="submit" className="auth-btn" disabled={loading}>
-            {loading ? "Logging in..." : "LOGIN"}
-          </button>
-        </form>
-        <div className="auth-footer">
-          <p>Don't have an account? <Link to="/register">Register</Link></p>
         </div>
-      </div>
-    </div>
+
+        <button type="submit" className="ps-btn ps-block" disabled={loading}>
+          {loading ? "Signing in..." : "Login"}
+        </button>
+      </form>
+
+      <div className="ps-divider" />
+
+      <p className="ps-text-muted" style={{ textAlign: "center" }}>
+        Don't have an account? <Link to="/register" className="ps-text-gold" style={{ textDecoration: "none" }}>Create one</Link>
+      </p>
+    </PageShell>
   );
 }
