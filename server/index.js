@@ -1075,16 +1075,21 @@ io.on("connection", (socket) => {
     }
     if (!player[type].betted || player[type].cashouted) return;
 
-    // Server is authoritative on the multiplier — never trust the client's number.
+    // Server is authoritative on the multiplier — never trust the client's number
+    // to EXCEED the live multiplier. The client sends `endTarget`: the multiplier
+    // the player saw on the CASHOUT button (manual) or their auto-cashout target.
+    // We honor that requested value ONLY when it is at or below the real server-side
+    // multiplier, so a tampered client sending endTarget=99999 can never claim more
+    // than the actual current multiplier. This fixes manual cashouts being wrongly
+    // capped at the default auto-target (2x), while still capping auto-cashouts at
+    // their target despite network latency.
     const elapsed = (Date.now() - gameStartTime) / 1000;
     const currentMultiplier = 1 + 0.06 * elapsed + Math.pow(0.06 * elapsed, 2) - Math.pow(0.04 * elapsed, 3) + Math.pow(0.04 * elapsed, 4);
-    // Cap at the actual server-side current multiplier. Ignore client's endTarget
-    // unless the user has a valid auto-target lower than current; this prevents
-    // a tampered client from sending endTarget=99999 to claim a huge payout.
+
     let cashOutAt = currentMultiplier;
-    const userTarget = Number(player[type].target);
-    if (Number.isFinite(userTarget) && userTarget > 1.0 && userTarget < currentMultiplier) {
-      cashOutAt = userTarget;
+    const requested = Number(data.endTarget);
+    if (Number.isFinite(requested) && requested > 1.0 && requested < currentMultiplier) {
+      cashOutAt = requested;
     }
     cashOutAt = Math.round(cashOutAt * 100) / 100;
     if (!Number.isFinite(cashOutAt) || cashOutAt < 1.01) {
